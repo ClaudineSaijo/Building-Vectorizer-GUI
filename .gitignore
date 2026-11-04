@@ -1,0 +1,31 @@
+# 数据与权重（体积大，不入库）
+data/
+runs/
+*.npy
+*.npz
+*.pt
+*.pth
+*.zip
+*.rar
+*.tif
+*.tiff
+
+# 环境
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+*.iml
+Thumbs.db
+desktop.ini
+
+# 日志与临时输出
+logs/
+*.log
+results/_tmp*

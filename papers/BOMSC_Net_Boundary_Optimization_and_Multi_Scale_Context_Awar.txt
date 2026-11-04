@@ -1,0 +1,1428 @@
+IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 60, 2022 5618617
+BOMSC-Net: Boundary Optimization and
+Multi-Scale Context Awareness Based Building
+Extraction From High-Resolution
+Remote Sensing Imagery
+Yuan Zhou , Zhanlong Chen ,B i nW a n g , Shuangjiang Li, Hao Liu, Daozhu Xu, and Chao Ma
+Abstract— Automatic building extraction from high-resolution
+remote sensing imagery has various applications, such as urban
+planning and land use management. However, the existing
+methods for automatic building extraction focus on regional
+accuracy but not on boundary quality. As a result, these building
+extraction methods yield discontinuous results due to tree and
+shadow occlusions and complex building roof materials. In this
+article, BOMSC-Net, which can consider boundary optimization
+and multi-scale context awareness, is proposed to address these
+two problems. BOMSC-Net is an encoder-to-decoder network
+composed of a basic network, a multi-scale context-aware module
+(MSCAM), and a direction feature optimization module (DFOM).
+The basic network learns to predict building segmentation maps
+through attention gates (AGs) that connect low-level feature
+jumps to advanced semantics. MSCAM is used as a bridge, which
+uses graph reasoning blocks (GRBs) to solve intra-class discon-
+tinuities. Finally, the DFOM constructs a direction ﬁeld (DF)
+and then uses direction information for boundary correction to
+achieve ﬁne building segmentations. Experiments were conducted
+on the open Massachusetts building dataset, WHU aerial building
+dataset, and Inria aerial image labeling dataset. The quantitative
+and qualitative analyses demonstrate that the proposed BOMSC-
+Net can help building extraction overcome interruptions caused
+by shadows and occlusions, extract buildings with different scales
+and materials, and realize boundary optimization and complete
+segmentation of buildings.
+Index Terms — Boundary optimization, building extraction,
+direction ﬁeld (DF), graph reasoning block (GRB), multi-scale
+context-aware module (MSCAM).
+Manuscript received November 20, 2021; revised January 20, 2022;
+accepted February 12, 2022. Date of publication February 17, 2022; date
+of current version March 24, 2022. This work was supported in part by the
+National Natural Science Foundation of China under Grant 41871305; in part
+by the National Key Research and Development Program of China under
+Grant 2017YFC0602204; in part by the Fundamental Research Funds for the
+Central Universities, China University of Geosciences, Wuhan, China, under
+Grant CUGQY1945; and in part by the Opening Fund of Key Laboratory of
+Geological Survey and Evaluation, Ministry of Education and the Fundamental
+Research Funds for the Central Uni versities under Grant GLAB2019ZR02.
+(Corresponding author: Zhanlong Chen.)
+Yuan Zhou is with the School of National Engineering Research Cen-
+ter of Geographic Information System, China University of Geosciences,
+Wuhan 430074, China (e-mail: zhouyuan@cug.edu.cn).
+Zhanlong Chen, Bin Wang, Shuangjiang Li, and Hao Liu are with the School
+of Geography and Information Engineering, China University of Geosciences,
+Wuhan 430074, China (e-mail: chenzl@c ug.edu.cn; wangbin@cug.edu.cn;
+lishuangjiang@cug.edu.cn; sunsky@cug.edu.cn).
+Daozhu Xu and Chao Ma are with the Xi’an Research Institute of
+Surveying and Mapping, Xi’an 710054, China (e-mail: confutao@163.com;
+jielong018@126.com).
+Digital Object Identiﬁer 10.1109/TGRS.2022.3152575
+I. I NTRODUCTION
+A
+S CENTRAL locations of human activities, cities are
+of great signiﬁcance, so realizing effective analysis and
+evaluation of a city’s development process is signiﬁcant for
+guiding sustainable development of the region [1]. As one of
+the main constituent elements of a city, buildings are inevitably
+a focus of researchers. Remote sensing imagery is currently the
+mainstream source for obtaining ground feature information.
+Therefore, effective extraction of buildings from remote sens-
+ing imagery is vital to applications such as urban planning,
+land use management, resource allocation, and convenience
+services [2]. Although high-resolution remote sensing imagery
+is rich in feature information, co mplex spectrum, structures,
+and texture information of feat ures also present severe chal-
+lenges to accurately extracting buildings.
+In the past, the use of image-processing-based methods
+enabled the possibility of building extraction. These research
+methods can be divided into methods based on building
+features [3], [4] and methods based on auxiliary informa-
+tion [5]. The methods based on building features use spectrum,
+texture, geometry, and other building characteristics to extract
+the building. Among them, corner detection operators [6],
+edge detection operators [7], image transformation [8], and
+histograms [9] are widely used in building feature extraction.
+However, because trees and shadows often block buildings,
+various detection operators ca nnot fully use the general geo-
+metric information. Some researchers construct a template
+library based on the prior shape of the building and introduce
+it into the active contour model to constrain the evolution
+of the segmentation curve [10], [11]. However, this method
+is limited regarding complex and diverse building shapes in
+a large area. The methods based on auxiliary information
+combine multi-source remote sensing data [12], [13], GIS
+data [14], and other rich building feature information to
+achieve accurate extraction. However, these methods are often
+time-consuming and extremely costly. This method of relying
+on expert experience and manually designed features is only
+suitable for some speciﬁc tasks. It is currently difﬁcult to meet
+research needs through this approach [15], [16].
+In recent years, owing to the advantages of being able to
+learn discriminatory features actively, deep learning has been
+1558-0644 © 2022 I EEE. Personal u se is perm itted, but republication/redistribution requires IEEE permission.
+See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+5618617 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 60, 2022
+widely used in the ﬁeld of remote sensing, including change
+detection [17], [18], scene recognition [19], [20], and land
+use classiﬁcation [21], [22]. Among them, the most typical
+method is the convolutional neural network (CNN) [23].
+CNN can obtain hierarchical data representation. High-level
+feature representation relies on low-level feature represen-
+tation. With the construction of a multi-layer convolution
+operation from shallow to deep, the features with more
+advanced semantic information are extracted gradually. Then,
+the fully convolutional network (FCN) [24] was proposed,
+which successfully broke the patch-wise barrier by removing
+the fully connected layer and achieved pixel-wise perfor-
+mance. This is essential for this data-intensive task of building
+extraction.
+Inspired by the above, the method based on deep learning
+offers excellent performance in building extraction [25], [26].
+Furthermore, some studies improved the FCN framework to
+obtain high-precision building segmentation results [27]–[29].
+However, accurate extraction o f buildings from remote sens-
+ing images is often affected by many objective conditions.
+On one hand, due to the spatial diversity of the building
+itself, its shape is complex, the size differs, and the roof
+material may be different; on the other hand, the imaging
+conditions of remote sensing images are disturbed by the
+environment, and buildings are often blocked by shadows and
+trees. These effects make it difﬁcult for the divided buildings
+to maintain their unique morphological characteristics and
+integrity.
+The boundary can describe the morphological shape of the
+building well [30]. Therefore, some studies achieve ﬁne build-
+ing segmentation by enhancing the description of boundary
+information or using postprocessing techniques. For example,
+Jung et al. [31] proposed a method composed of holistically
+nested edge detection and a boundary enhancement module,
+which extracts edge features and a ssists in generating building
+segmentation results with enhanced boundary information.
+Ma et al. [32] constructed an encoder with local and global
+feature extraction to fully describe buildings of different
+shapes. Although this method can obtain useful information
+that pays more attention to the boundary, adding a complex
+network structure and additional auxiliary data also increases
+consumption. Postprocessing technology is a commonly used
+method to solve blurred boundaries of building segmentation.
+Some ﬁlters, such as a guided ﬁlter [33], morphological
+ﬁlter [34], and other methods, optimize building boundaries
+and improve boundary regularity. In addition, some methods
+try to reﬁne the results of FCNs using probabilistic graph
+models, such as fully connected conditional random ﬁelds
+(CRFs) [35]. For example, Zhu et al. [36] proposed to com-
+bine segmentation-prior CRFs to carry out building extraction
+work based on a multi-scale semantic segmentation network
+(D-LinkNet). Sun et al. [37] proposed a new time-efﬁcient
+end-to-end CRF model to reduce time consumption. Although
+the postprocessing method has been greatly improved, its
+computational cost is high, and the time consumption problem
+cannot be completely solved. To further improve building
+shape, a multi-task framework is applied to building extraction.
+Wu et al. [38] proposed a boundary regulated network, which
+uses an improved U-Net to perform multi-task learning to
+obtain segmentation maps and edge contour maps, to obtain
+the results of boundary optimization. However, there is no
+direct connection between tasks, and the burden of model
+training will continually increase.
+The result of building extr action is also reﬂected in com-
+pleteness. Some studies have attempted to capture the con-
+textual information of multi-scale objects by constructing a
+wider [39], [40] and deeper [41] network. Most of these
+methods use pyramid structures or convolution operations with
+different receptive ﬁelds to fuse features of different scales
+and resolutions to enhance contextual information learning
+of buildings. Sun et al. [42] proposed using an improved
+encoder with multi-scale convolution to extract depth features
+of buildings. Some researchers used spatial pyramid pooling
+operations to connect the encoder and decoder features hierar-
+chically to extract multi-scale building information [43], [44].
+Although feature fusion of different resolutions in the process
+of feature extraction can enhance the contextual information
+of the building, the location information of the building
+may be lost, leading to blurry boundaries or excessively
+smooth corners. Introducing skip connections [45] in the
+decoder and capturing long-distance dependencies in space
+or channel through the attention mechanism [46], [47] rep-
+resent important ways to solve the lack of spatial infor-
+mation. Yang et al. [48] combined a dense network and
+attention mechanism to form a new dense attention network.
+The purpose is to enhance low-level feature information
+and prevent excessively redundant low-level features from
+being introduced into the model. Pan et al. [49] combined
+space and channel attention mechanisms to construct a new
+generative adversarial network to achieve ﬁne segmentation
+of buildings. The incomplete segmentation caused by the
+difﬁculty of capturing long-distance area has not yet been
+solved.
+However, unclear boundaries or variable intensity lead to
+the lack of feature correlation between pixels. The global
+correlation between long-distance regions cannot be guar-
+anteed. There are still problems of blurred boundaries and
+incomplete extraction in building extraction. To solve the
+above problems, BOMSC-Net is proposed to achieve ﬁne
+segmentation of multi-scale buildings. On one hand, with the
+introduction of attention gates (AGs) in the basic network, low-
+level features are connected to ad vanced semantic information
+to realize attention to signiﬁcant areas and suppress irrele-
+vant background. In addition, a direction feature optimization
+module (DFOM) is used to further perceive the direction infor-
+mation of buildings to reﬁne the results of building boundary
+segmentation. On the other hand, a multi-scale context-aware
+module (MSCAM) is introduced. Instead of stacking deep
+convolution operations to implicitly construct the global con-
+text, the module complements the global information of build-
+ings through graph reasoning blocks (GRBs). Experiments
+were conducted on the open Massachusetts building dataset,
+WHU aerial building dataset, and Inria aerial image labeling
+dataset. Quantitative and qualitative analyses demonstrate that
+BOMSC-Net achieves outstanding performance in terms of
+generalization and robustness.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+ZHOU et al. : BOMSC-NET BASED BUILDING EXTRACTION FROM HIGH-RESOLUTION REMOTE SENSING IMAGERY 5618617
+Fig. 1. Schematic of the proposed segm entation framework. Loss1 adopts
+the general binary entropy loss L BCE and Ldice. Loss2 uses direction ﬁeld
+loss LDF.
+The main contributions of this study are as follows.
+1) This study proposes a novel segmentation network
+framework, BOMSC-Net, to achieve ﬁne building seg-
+mentation in high-resolution remote sensing.
+2) The MSCAM, which uses pooling operations of differ-
+ent kernel sizes in the branch path and then a parallel
+graph reasoning module to realize context inference of
+multi-scale buildings, is designed.
+3) The DFOM aims to use the directional relationship
+between pixels to guide ﬁne segmentation of building
+boundaries.
+The remainder of this article is organized as follows.
+Section II introduces the details of the proposed BOMSC-Net.
+Section III describes the implementation details of the exper-
+iments. Section IV displays the experimental results and dis-
+cussion content. Section V provides the conclusion.
+II. M ETHODOLOGY
+This study proposed a multi-module CNN network frame-
+work, BOMSC-Net, to extract buildings from remote sens-
+ing images. The network comprises the basic network, the
+MSCAM, and the DFOM. As shown in Fig. 1, the basic
+network uses multi-layer convolution operations on the input
+RGB images to process local information layer by layer to
+obtain higher dimensional semantic information.
+In addition, the basic network connects low-level features to
+high-level semantic information through AGs to direct atten-
+tion to signiﬁcant areas of buildings and to suppress irrelevant
+backgrounds. In particular, an MSCAM is embedded between
+encoding and decoding to realize the inference of global
+context information to better express multi-scale features of
+buildings. To further reﬁne the ﬁnal segmentation results,
+this study designs a DFOM to dig deeper into the spatial
+relationships between each pixe l and uses the directional
+spatial relationship as a guide to achieve reﬁned segmentation
+of the network results.
+A. Basic Network
+The basic network of this study is a universal
+encoding–decoding end-to-end structure. The basic network
+takes RGB image I ∈ R3×H×W as input, where H × W
+refers to the size of the input image, as shown in Fig. 2. The
+Fig. 2. Detailed process of the basic network. xl(l ∈[ 1, 2, 3, 4, 5])
+represents the feature map obtained by the encoder, and its size is 2 r · 64 ×
+(H/2r) × (W/2r )(r ∈[ 0, 1, 2, 3, 4]). yl represents the feature map by the
+decoder. l represents the number of layers, and r is the ratio. Note that
+x5 and y5 are the same feature map, and only x5 is marked in the ﬁgure.
+gl represents the gating signal.
+encoder is composed of multiple consecutive convolution
+and down-sampling operations. The pixels are separated
+to obtain their high-level semantic information at the cost
+of increasing the channel dimension. First, I can obtain
+low-level features x1 through convolution operations (the
+kernel size is 3, and the stride is 1), linear transformation
+(batch normalization), and nonlinear activation function
+[rectiﬁed linear unit (ReLU)] in turn. Applying a max-pooling
+operation to x1 can achieve down-sampling to obtain features
+with more local information. This feature will be used as
+the input feature of the next layer, and a similar operation
+of the previous layer will be repeated. There are ﬁve layers
+in encoding. Using l to represent the number of layers, each
+layer can obtain feature maps xl (l ∈[ 1, 2, 3, 4, 5]) with
+different sizes and channel sizes.
+The decoder is realized by an up-sampling operation com-
+bined with multiple consecutive convolution operations. The
+decoding process consists of four layers. The feature map
+yl obtained at each layer will undergo up-sampling and
+convolution operations to gradually restore image features.
+Speciﬁcally, this study uses the nearest neighbor interpolation
+algorithm for up-sampling, and the scale factor is set to 2.
+In particular, we use a special skip connection to redistrib-
+ute the weights of different regions in low-level feature of
+the encoding stage. Weight redistribution is realized through
+AGs [46], which prompt the network to pay attention to
+the area of interest, suppress the irrelevant background, and
+learn more local information about the building. Fig. 3 shows
+the implementation process of AGs. The output of AGs is
+element-wise multip lication of input feature maps and atten-
+tion coefﬁcients.
+First, up-sampling and convolution operations are performed
+on yl+1 to obtain the gating signal gl . The formula is expressed
+as
+gl = Conv(/Phi1(yl)) (1)
+where Conv denotes the convolution operation (the kernel
+size is 3, and the stride is 1), and /Phi1 denotes the linear
+transformation (batch normalization) and nonlinear activation
+function (ReLU).
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+5618617 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 60, 2022
+Fig. 3. Detailed process of AG. The feature map xl from the l layer encoding
+undergoes a series of operations to obt ain the attention coefﬁcient αl ∈[ 0, 1].
+αl can identify salient image regions and suppress irrelevant backgrounds.
+Then, the feature map ˆxl after attention enhancement can be obtained.
+Second, the gating signal gl and the feature map xl from the
+corresponding layer of the encoding are used to calculate the
+attention coefﬁcient αl . The following formulas can express
+it:
+αl−1 = σ (ψT (R(W Tx xl−1 + W Tg gl + bg )) + bψ ) (2)
+where W Tx , W Tg , and ψT denote the linear transformations,
+and bg and bψ denote the bias terms. Both W Tx and W Tg are
+achieved through a convolution operation (the kernel size is 1,
+and the stride is 1) and a batch normalization. R denotes the
+ReLU, and σ corresponds to the Sigmoid activation function.
+Then, by performing element-wise multiplication on αl and
+xl , a new feature map ˆxl with attention weight can be obtained.
+The speciﬁc formula is as follows :
+ˆxl = xl · αl,α l ∈ [0, 1]. (3)
+Finally, the feature map ˆ xl after attention enhancement and
+the decoding feature map are aggregated by concatenation
+operation. The decoding feature map yl is obtained at the
+output of layer l by sequentially applying multiple convolution
+operations (the kernel size is 3, and the stride is 1) and a linear
+transformation (batch normalization) followed by a nonlinear
+activation function (ReLU). yl will be used as the input feature
+map of the decoder of the next layer, and the above process
+will be repeated.
+Note that this study embeds an MSCAM between the
+encoder and the decoder of the network and embeds a DFOM
+in the penultimate layer of the decoding part. For details, see
+the next section. Finally, the last layer of the network uses
+a1 × 1 convolution operation (the kernel size is 1, and the
+step size is 1) to replace the role of the fully connected layer.
+Then, the ﬁnal building extraction result is obtained through
+a Sigmoid activation function.
+B. Multi-Scale Context-Aware Module
+To enhance the network’s ability to reason regarding contex-
+tual information, thereby cap turing feature maps with global
+contextual information, this study designs an MSCAM to
+aggregate semantic informa tion between remote regions of
+different scales. In Fig. 4, pat hs with different pooling sizes
+are constructed hierarchically into a feature map. GRBs are
+applied to each layer of paths to achieve efﬁcient global
+information inference.
+Fig. 4. Illustration of MSCAM. In particular, the ﬁgure shows the structure
+of the GRB in detail.
+Fig. 5. Schematic of the inference space.
+The MSCAM is divided into four paths. First, we perform
+a3 × 3 convolution operation on the input feature map
+X. Then, three paths must undergo max-pooling operations
+with different kernel sizes. Speciﬁcally, the kernel sizes for
+max-pooling operations are set to 2 × 2, 3 × 3, and 5 ×
+5. To preserve the original features, the remaining path is
+not pooled. We use different receptive ﬁelds to capture and
+learn multi-scale building inf ormation. Second, these features
+are fed into the GRBs to better learn the object’s remote
+semantic context. Finally, the feature maps of each branch path
+after passing through the GRB are uniﬁed through bilinear
+interpolation, and then the ﬁnal output feature map X′ is
+obtained through concatenation.
+Graph reasoning has been proven to be an effective method
+of relationship reasoning for obtaining object relationships
+between remote regions [50], [51]. To obtain global context
+information for buildings, this study projects a feature map
+into an inference space that can in teractively describe regional
+relationships to capture the distance between disjoint regions
+with arbitrarily shaped relationships.
+Different from the regular coordinate space ℧ =
+{1,..., H ×{1,..., W, the latent inference space expresses
+the relationship between regions through nodes, edges, and
+adjacency matrices. Concretely , the convolution is performed
+over a regular nearest neighbor graph deﬁned by an adjacent
+matrix A ∈ RL×L ,w h e r eAij = 1 if regions i and j are
+spatially adjacent; otherwise, Aij = 0. The edges of the graph
+encode spatial proximity, and its node stores the feature for
+that location, as shown in Fig. 5.
+The detailed description of the GRB is as follows.
+Step 1: For the original feature map Z ∈ RC×H×W , C is
+the channel size of the feature map, and the original regular
+coordinate space is ℧ ={ 1,..., H ×{1,..., W. It is necessary
+to ﬁnd the projection function f (·) that maps the original
+feature map to the inference space . In the inference space,
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+ZHOU et al. : BOMSC-NET BASED BUILDING EXTRACTION FROM HIGH-RESOLUTION REMOTE SENSING IMAGERY 5618617
+we can construct a new fully connected graph Ag, where each
+node stores the new feature as its state. A new feature map
+V = f (Z) ∈ RC×N is obtained by transforming the projection
+function, where N is the number of nodes of feature Z in
+the inference space . Speciﬁcally, V can be expressed by the
+following formula:
+vi = Zb i =
+∑
+∀ j
+z j b ji (4)
+where B =[ b1,..., bN ]∈ RH×W×N denotes the learnable
+projection weights, and z j ∈ RC×1,v i ∈ RC×1. In practice,
+to reduce the input dimension and to increase the capacity
+of the projection function, we implement the function f (Z)
+as f (∅(Z; W∅)) and B = θ( Z; Wθ). We model ∅(·) and
+θ(·) by two convolution layers. W∅ and Wθ are the learnable
+convolution kernels of each layer.
+Step 2: To capture the interaction b etween features of the
+corresponding nodes, the contextual relationship between each
+pair of nodes is modeled and inferred by applying a general
+graph convolution. The formula can be described as follows :
+V′ = GVW g = ((1 − Ag )V )Wg (5)
+where G denotes a graph of the original, and Wg denotes the
+weight parameter matrix. V′ is a new feature obtained through
+graph convolution inference.
+Step 3: It is also necessary to perform back projection
+to reverse the features in th e inference space back to the
+original coordinate space. Then, the projected features can
+be effectively integrated with the original framework network
+to provide better decision-making for subsequent network
+learning. The speciﬁc formula is as follows :
+Z′ = G(V′), V′ ∈ RC×N , Z′ ∈ RC× H×W (6)
+where Z′ refers to the features of the coordinate space that are
+reverse-mapped through the projection function g(·). Similar
+to (4), linear projection is used to formulate g(V′)
+zi′ = di V′ = ∑
+∀ j
+dij v j ′. (7)
+The feature v′j of node j is assigned to z′i weighted by a
+scalar dij .
+C. Direction Feature Optimization Module
+The current building segmentation methods based on deep
+learning lack global control over the correlation between
+pixels, resulting in the inability of segmented buildings to
+maintain their morphological shapes. To further reﬁne the
+boundary information of the building, this study uses DFOM to
+explore the spatial relationships between pixels and strengthen
+the semantic associations between pixels to achieve high-
+precision segmentation. As shown in Algorithm 1, this study
+depicts the DFOM algorithm in the form of pseudocode.
+1) Direction Field: The direction ﬁeld (DF) of each pixel
+p is deﬁned as a two-dimensional unit vector pointing from
+its nearest boundary pixel b to pixel p [52], [53]. DF provides
+cues about contour positions and the relative position of each
+pixel p to its region boundary. In the image domain /Omega1,f o r
+Algorithm 1 Direction Feature Optimization Module
+1: Input: Image and ground truth ( I, G)
+2: while in training stage: do
+3: Get the batch of initial segmentation F
+and network’s initial parameter θ
+4: // step1: Obtain the predicted direction ﬁeld Fdf
+and the direction truth R
+5: Fdf ← Conv_1 × 1( F)
+6: R ← Distance transform ( G)
+7: // step2: Direction rectiﬁcation
+8: F0(x, y), F0df (x, y) ← Grid (F, Fdf )
+9: for i = 1,..., N do
+10: Fi ← Rectify(Fi−1(x, y), Fi−1df (x, y))
+11: Fi ← grid_upsample (F, Fi )
+12: end for
+13: // Update parameters
+14: ˆθ ← θ − (α∇ Lbce(θ, G) + β∇ Ldice (θ, G))
+15: ˆθdf ← θdf − (γ∇ Ldf (θdf , Fdf , R))
+16: end while
+each foreground pixel p located inside the buildings, we ﬁnd
+its nearest boundary pixel b located at the boundary of the
+building. Background pixels represent pixels in non-building
+areas. Then, we describe the distance and direction information
+between pixel b and pixel p by constructing the directional
+vector −→
+bp
+from boundary pixel b to pixel p inside the
+building. At the same time, other vectors that pass through the
+background pixels are set to (0, 0). Therefore, the boundary
+and directional characteristics o f buildings can be represented
+by the DF as follows :
+DF( p) =
+⎧
+⎨
+⎩
+−→
+bp
+−→
+|bp|
+, p ∈ buildings
+(0, 0), otherwise.
+(8)
+The DF of the network can be learned through a 1 ×
+1 convolution operation. Speciﬁcally, this study speciﬁes the
+64-channel feature map extracted from the decoding layer as
+the initial segmentation map F0( p) ∈ RC×H×W . Applying
+a1 × 1 convolution operation to F0( p) can yield the two-
+channel prediction direction ﬁeld DF( p) ∈ R2×H×W . Note that
+the direction truth from the ground truth can be efﬁciently
+achieved by the distance transform algorithm [54]. For the
+binary image ground truth, the foreground pixel is 1, and the
+background pixel is 0. The distance transformation algorithm
+can quantify the minimum distance between pixels 1 and 0.
+The result of the distance transformation is a grayscale image,
+that is, a distance image. The gray value of each pixel in
+the image is the distance between the foreground pixel and
+the nearest background pixel. The Euclidean distance used
+in the calculation by the distance transformation algorithm is
+speciﬁed as
+d =
+√
+(x1 − x2)2 + (y1 − y2)2. (9)
+2) Direction Rectiﬁcation Block: The direction rectiﬁcation
+block can gradually correct the errors of the initial seg-
+mentation map with the help of acquired DF. The direction
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+5618617 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 60, 2022
+Fig. 6. Illustration of the direction rectiﬁcation block. The initial segmenta-
+tion map F0( p) is gridded. The boundary rectiﬁcation is performed on F0( p)
+using the pixels at the corresponding position in the direction ﬁeld (DF), and
+F1( p) can be obtained. After four corrections, an improved segmentation
+map F4( p) is obtained. The lower left corner is a schematic of the correction
+process of S1. −→
+bp
+is a directional vector. F0( px , py) is the pixel p predicted
+by F0( p). DF ( px , py) is the position of the corresponding pixel p in DF.
+F0( px, py) is corrected once through −→
+bp
+so that the building boundary is
+optimized once. S2, S3, and S4 are the same as S1.
+rectiﬁcation block iteratively corrects the pixel close to the
+boundary pixel through features in the center area.
+First, grids F0( p) and DF ( p) facilitate the determination
+of the coordinate position of each pixel. In Fig. 6, Fk( px, py)
+is the pixel p predicted by Fk( p).D F( px, py) is the position
+of the corresponding pixel p in the DF. Fk( px, py) points
+to DF ( px, py) to move gradually, and there is only one
+unique directional vector −→bp for each point. Concretely, the
+improved feature map Fk( p) ∈ RC×H×W is updated iteratively
+through the position pointed by −→bp provided by DF ( p),
+and it is calculated by bilinear interpolation. For F0( p),t h e
+corrected feature map F1( p) ∈ RC×H×W can be obtained
+after one correction process S1. After N corrections, a ﬁne
+segmentation result map is obtained. The whole procedure is
+formalized as follows :
+∀ p ∈ /Omega1, Fk( p)= F(k−1)( px +DF( p)x, py + DF( p)y) (10)
+where 1 ≤ k ≤ N denotes the current step, and N is the total
+number of steps (set to 5 if not stated otherwise).
+After performing the above rectiﬁcation process, we con-
+catenate F N ( p) with F0( p) and then apply the ﬁnal classiﬁer
+to the concatenated feature m ap to predict ﬁnal building
+segmentation.
+D. Overall Loss Function
+To prevent overﬁtting of the network model, a hybrid loss
+function is used to optimize the gradient drop. This study uses
+different loss functions for DF and segmentation results with
+joint supervision during training. The overall loss L can be
+calculated by
+L = αLBCE + β Ldice + γ LDF (11)
+where LBCE and Ldice are the loss functions that act on the
+network segmentation results. L DF is the loss equation for
+the directional ﬁeld. α, β, and γ denote the balance factors
+of the three loss functions. Usually, they are set to 0.5, 0.4,
+and 0.1, respectively.
+The binary entropy loss LBCE and dice loss Ldice are com-
+mon losses of semantic segmentation and are the most appro-
+priate for monitoring the result. Formally, LBCE is deﬁned as
+LBCE =− 1
+N
+∑
+i
+(yi × log( ˜yi) + (1 − yi) × log(1 − ˜yi)) (12)
+where yi and ˜yi denote the true ground label probability
+of sample i and the predicted probability, respectively. N
+represents the number of pixels in the image. In addition, Ldice
+is deﬁned as
+Ldice = 1 − 2 ∑Ni yi × ˜yi + 1
+∑N
+i y2i + ∑Ni ˜yi 2 + 1. (13)
+In particular, this study uses LDF, which is composed of the
+L2norm distance and angle distance. LDF can be expressed as
+LDF =
+∑
+pi ∈/Omega1
+(‖‖DF( pi) − ˜DF( pi)‖‖2 + α
+×
+‖‖cos−1⟨DF( pi), ˜DF( pi)⟩‖‖2) (14)
+where DF( pi) and ˜DF( pi) are the direction truth probability
+of sample i and the predicted DF probability, respectively.
+To balance the weight ratio between the L2norm distance and
+angle distance, this study sets a hyperparameter α,w h i c hi s
+set to 1 as the default value in all the experiments.
+III. E XPERIMENTS
+A. Dataset
+To evaluate the effectiveness of the method proposed in
+this study, we use the Massachusetts building dataset [55], the
+WHU aerial buidling dataset [56], and the Inria aerial image
+labeling dataset [57] to carry out veriﬁcation experiments.
+The Massachusetts building dataset consists of 151 aerial
+images in the Boston area, each with a size of 1500 ×
+1500 pixels and an area of 2.25 km 2. Therefore, the entire
+dataset covers approximately 340 km 2. The dataset consists
+of 137 training set images, with ten images in the test set
+and a validation set of four images. It mainly covers cities
+and suburbs as well as buildings of various sizes, including
+residential areas, commercial areas, industrial areas, etc. The
+spatial resolution of the dataset is 1 m.
+The WHU aerial buidling dataset consists of aerial imagery
+and satellite imagery. This study selects aerial imagery, as this
+type of imagery is widely used in the current work. The aerial
+dataset consists of more than 220 000 independent buildings
+extracted from aerial images with 0.3-m ground resolution
+over 450 km 2 covering Christchurch, New Zealand. The
+dataset includes a training set of 4736 images, a veriﬁcation
+set of 1036 images, and a test set of 2416 images. Each image
+and the corresponding label are cropped to 512 × 512 pixels.
+The Inria aerial image labeling dataset covers an area of
+810 km 2 from ﬁve cities of Austin, Chicago, Kitsap, Tyrol,
+and Vienna. These areas cover different urban settlements,
+ranging from densely populated areas to alpine towns. The
+dataset has 180 labeled images and 180 unlabeled images,
+each of size 5000 × 5000. The spatial resolution of the dataset
+is 0.3 m. Similar to other studies, this study uses only
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+ZHOU et al. : BOMSC-NET BASED BUILDING EXTRACTION FROM HIGH-RESOLUTION REMOTE SENSING IMAGERY 5618617
+180 labeled images for training and testing. The ﬁrst ﬁve
+images of each city are selected as the test set, and the rest
+are taken for training and validation sets.
+B. Implementation Details
+This study crops both the image data and the label data
+to a size of 256 × 256 pixels in the model input. The
+cropped images are subjected to data enhancement methods
+to obtain the preprocessed datas et. These data enhancement
+methods mainly include random ﬂipping and rotation, addition
+of noise points, blurring, and gray value transformation. These
+methods can increase the diversity of data. After that, all
+the models are trained with th e same parameter settings and
+environment. Speciﬁcally, our work is carried out on the
+Ubuntu 18.04 platform using the PyTorch 1.7 framework
+based on Python 3.7 programming language. Nvidia GTX3080
+(memory 10 G) used allows a batch size of four images. This
+study uses the Adam optimizer to train the model. The initial
+learning rate is 10 −4. When the loss is not reduced for more
+than ﬁve iterations, the learning rate declines to 0.2 times the
+original basis. We set the weight decay to 10 −5 to prevent
+overﬁtting. The proposed method is trained for 200 epochs on
+the Massachusetts building dataset, the WHU aerial building
+dataset, and the Inria aerial image labeling dataset and reaches
+a state of convergence.
+C. Evaluation Metrics
+To quantitatively measure the performance of BOMSC-Net,
+this study uses several common evaluation indicators in seman-
+tic segmentation: overall accuracy (OA), precision (P), recall
+(R), F1-score, and intersection over union (IoU). Speciﬁcally,
+the above indicators are expressed by the following formulas :
+OA = TP + TN
+TP + TN + FP + FN (15)
+P = TP
+TP + FP (16)
+R = TP
+TP + FN (17)
+F1 = 2 × P × R
+P + R (18)
+where TP , TN, FP, and FN represent the true positives, true
+negatives, false positives, and false negatives, respectively.
+OA is the percentage of the total sample in which prediction
+is correct. Generally, the higher the accuracy, the better the
+segmentation effect. P is the probability of the samples that
+are positive among all the samples that are predicted to
+be positive. R represents the probability of being predicted
+to be a positive sample for a sample that is positive. The
+F1-score comprehensively considers the relationship between
+P and R so that the two can be simultaneously maximized and
+balanced. The IoU can determine the degree of the capture of
+the target features, maximize the intersection of the predicted
+label and the annotation, and d etermine the accuracy of the
+model. The speciﬁc calcu lation method is as follows :
+IoU =
+⏐⏐Pp ∩ Pt ⏐⏐
+⏐⏐Pp ∪ Pt ⏐⏐ (19)
+where Pp denotes the set of pixels predicted as buildings and
+Pt denotes the ground-truth set. |·| denotes the function for
+calculating the number of pixels in the set.
+In addition to the above evaluation metrics, to verify the
+effectiveness of the method in boundary shape learning, two
+boundary metrics are used for quantitative evaluation: Haus-
+dorff distance (HD) [57] and structural similarity (SSIM) [58].
+As a measure of shape similarity, HD is more sensitive to
+segmented boundaries. The speciﬁc description of this term is
+as follows:
+dH (X, Y) = max{dXY , dYX }
+= max
+{
+max
+x∈X
+min
+y∈Y
+(x, y), max
+y∈Y
+min
+x∈X
+(x, y)
+}
+(20)
+where X and Y denote the ground truth and prediction map,
+respectively. dH (X, Y) can be understood as the maximum
+value of the shortest distance from a point in one point set to
+another point set. To eliminate the inﬂuence of a very small
+subset of outliers, HD is multiplied by 95% to obtain the ﬁnal
+evaluation index (95% HD). When the distance is smaller, the
+shape of the predicted result is more similar to the shape of
+the real label.
+SSIM is a measure of the similarity between two images.
+It is composed of a brightness function l(X, Y), contrast
+function c(X, Y), and structure function s(X, Y). The speciﬁc
+description is as follows :
+S(X, Y) = F(l(X, Y), c(X, Y), s(X, Y))
+=
+(
+2μxμy + C1
+)(
+2σxy + C2
+)
+(
+μ2x + μ2y + C1)(σ 2x + σ 2y + C2) (21)
+where μ,σ, and σxy represent the mean, variance, and covari-
+ance, respectively. To avoid division by zero, C1 and C2
+represent the constants 6.50 and 58.52. The range of SSIM
+is (−1, 1). When the two images are the same, the value of
+SSIM is equal to 1.
+IV . RESULTS AND DISCUSSION
+A. Experiment Using the Massachusetts Building Dataset
+Fig. 7 shows the experimental results of the method in
+this study, the classic semantic segmentation models, and
+the latest building extraction models. There are four rows
+and eight columns in Fig. 7. We choose four representative
+images in the test set to display, as shown in Fig. 7(a)–(d).
+UNet [59], DeepLabv3 + [60], SegNet [61], MAPNet [62],
+BMFR-Net [63], and BOMSC-Net were used for comparative
+experiments. The second column in Fig. 7 is the ground truth,
+and the following columns are the test results obtained by
+different models. Due to insufﬁcient memory, we cropped the
+test set into overlapping patches of 1280 × 1280. Then, the
+patch boundary problem can be alleviated by calculating the
+average value of multiple predictions in the overlapping areas.
+As shown in Fig. 7, the Massachusetts building dataset
+presents the following challenges. First, small building shape
+segmentation is difﬁcult. Since the dataset has a low reso-
+lution and is dominated by small and dense buildings, the
+boundary segmentation of smaller buildings is often blurred.
+Second, there are difﬁculties i n complete segmentation of
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+5618617 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 60, 2022
+Fig. 7. Building extraction results on the Massachusetts build ing dataset. (a)–(d) Representative images in the test set.
+large buildings. Different roof materials and partial shadow
+occlusion greatly reduce the integrity of building extraction.
+Compared with other methods, BOMSC-Net can optimize the
+boundaries of buildings and retain their original shapes as
+much as possible. Moreover, this method realizes the complete
+extraction of large buildings. Fig. 8 shows a detailed view of
+the marked area in Fig. 7.
+In Fig. 8, the ﬁrst and second rows contain close-ups
+of the extraction results of buildings in a complex envi-
+ronment; the third row presents the detailed results of the
+extraction of small buildings; and the fourth row includes the
+extraction results of large buildings. Due to the interference
+caused by shadow and tree occlusion, the other ﬁve test
+models experience more building omissions and misclassi-
+ﬁcations in areas A and B. In contrast, our network can
+better solve these problems. Regarding the problem of fuzzy
+boundary segmentation of small buildings in area C, it can
+be found from the segmentation results that BOMSC-Net
+can accurately extract the outlines of small buildings. Given
+the difﬁculty of segmenting large buildings in area D,
+BOMSC-Net can realize complete extraction of large build-
+ings. Compared with other methods, our method offers obvious
+advantages.
+This study uses common semantic segmentation evaluation
+metrics to verify the accuracy of BOMSC-Net on the Massa-
+chusetts building dataset. In addition, the evaluation metrics of
+the boundary are used to verify the advantages of the network
+in building shape learning. Since the Massachusetts building
+dataset is public, much work has been published in related
+journals. Therefore, in addition to the above comparison
+methods, this study quotes the accurate reports published for
+BRRNet [16], GMEDN [32], and DR-Net [26] in reliable
+journals. The results of the quantitative evaluation are shown
+in Table I. The rows are the evaluation metric results of each
+method. The columns indicate the test methods. The last row
+records the results for each indicator of the method proposed
+in this study. The best results are in bold, and the secondary
+results are underlined.
+Table I shows that BOMSC-Net has achieved excellent
+results for various evaluatio n indicators. Speciﬁcally, the
+R-value and the P-value of BOMSC-Net are 83.68% and
+86.64%, respectively. However, BOMSC-Net achieved the
+highest OA, F1, and IoU, at 94.71%, 85.13%, and 74.71%,
+respectively. This shows that our method can maintain a
+balance between R-value and P-value, maximizing identiﬁ-
+cation while reducing building misclassiﬁcations and omis-
+sions. In addition, the method in this study obtains the
+second lowest 95% HD score and the highest SSIM score,
+at 217.10% and 80.54%, respectively. The 95% HD score
+of DeepLabv3 + is lower than our network’s 95% HD score
+because DeepLabv3 +’s omissions are more serious and do
+not detect certain buildings. Moreover, the SSIM score of
+DeepLabv3+ is the lowest. On the whole, our network is
+still advanced concerning l earning about the boundaries of
+buildings. The lower the 95% HD score, the closer the shape
+similarity between the building segmentation result and the
+ground truth. The closer the SSIM score to 1, the closer the
+similarity between our predicted building image and the real
+label.
+B. Experiment Using the WHU Aerial Building Dataset
+To further test the generalization performance of
+BOMSC-Net regarding extracting buildings in different
+datasets, this study also includes experiments on the WHU
+aerial building dataset. The WHU aerial building dataset
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+ZHOU et al. : BOMSC-NET BASED BUILDING EXTRACTION FROM HIGH-RESOLUTION REMOTE SENSING IMAGERY 5618617
+Fig. 8. (A)–(D) Images of the regions marked by red boxes in Fig. 7.
+TABLE I
+QUANTITA TIVE EVA L UAT I O N O N T H EMASSACHUSETTS BUILDING DATAS ET
+TABLE II
+QUANTITA TIVE EVA L UAT I O N O N T H EWHU A ERIAL BUILDING DATAS ET
+distribution is equally complex, including buildings with
+different materials, sizes, and shapes. The prediction results
+based on the WHU aerial building dataset are shown in
+Fig. 9. The columns display the results of the test methods,
+and the rows represent samples of different buildings.
+Fig. 9 shows that the proposed BOMSC-Net offers more
+advantages than the other test methods when dealing with
+buildings in complex scenarios. The buildings extracted by
+BOMSC-Net are the most complete, and its boundary shape
+segmentation is better. The ﬁrst and second rows show
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+5618617 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 60, 2022
+Fig. 9. Building extraction results on the WHU aerial buildin g dataset. (a)–(d) Representative images in the test set.
+buildings with complex boundary contours. The method pro-
+posed in this study is more accurate and detailed regarding
+the description of the shape of the buildings. BOMSC-Net
+can accurately distinguish the building and the background
+for incorrectly marked buildings. As shown in the second and
+third rows in Fig. 9, BOMSC-Net can signiﬁcantly reduce
+misclassiﬁcation and omission for other objects with obvious
+interference. When the roof material of the building changes,
+the segmentation result is incomplete. This study can fully
+perceive the contextual information of the building with the
+advantage of the GRB and accurately infer the complete shape
+of the building.
+The results of the quantitative evaluation are shown in
+Table II. The rows represent different test methods, and the
+columns represent different e valuation indicators. In addi-
+tion to the above test models, this study cited the latest
+building extraction studies SRI-Net [64], DR-Net [26], and
+SST [65] to further compare the building segmentation results.
+BOMSC-Net obtained the highest R-value, F1,a n dI o U ,
+at 98.20%, 94.50%, 94.80%, and 90.15%, respectively. This
+further veriﬁes that our method can ensure the integrity of the
+building even when the roof material is complex and trees
+are severely impeded. There are various containers around
+the factory building in the WHU aerial building dataset.
+These containers often have spectrum, texture, shape, and
+color characteristics similar to those of factory buildings,
+as shown in the third row in Fig. 9, resulting in slightly
+lower OA and P-values for our method than other methods,
+at 95.14% and 98.20%, respectively. BOMSC-Net obtains the
+lowest 95% HD and highest SSIM scores on the WHU aerial
+building dataset, with 80.03% and 92.43%, respectively. It is
+sufﬁcient to prove that the method proposed in this study
+has advantages in shape learning. The DFOM can optimize
+the boundaries of buildings, achieving ﬁne segmentation of
+buildings.
+C. Experiment Using the Inria Aerial Image Labeling
+Dataset
+Since the Inria Aerial Image Labeling Dataset contains
+aerial images of buildings in ﬁve different cities, it is very
+convincing to test the generalization of the model. There-
+fore, this study also conducts comparative experiments on
+this dataset. As shown in Fig. 10(a), (b), (c), (d), and (e), the
+rows show the test images of different cities: Austin (U.S.),
+Chicago (U.S.), Kitsap (U.S.), Tyrol (Austria), and Vienna
+(Austria)., respectively The columns show the test results of
+different models. Likewise, the test set is overlapped and
+cropped due to insufﬁcient device memory. The size of each
+image is 1280 × 1280, for a total of 400 images. As can
+be seen from Fig. 10, even in complex scenes that include
+tree occlusion, mislabeling, or buildings of different sizes
+and styles, BOMSC-Net can still extract building results with
+more complete boundary shapes compared with the results
+from other models. Fig. 10(a) and (b) shows the segmentation
+results of buildings with signiﬁcant size differences. Obvi-
+ously, BOMSC-Net can perceive long-distance context infor-
+mation, which can help complete the segmentation of large-
+scale buildings. Fig. 10(c) and (d) shows the extraction results
+of small buildings by different models. It can be seen from the
+highlighted positions in Fig. 10 that other models have certain
+misclassiﬁcations and omissions. BOMSC-Net can perfectly
+solve this problem. Fig. 10(e) shows a mislabeled image.
+In complex scenes, the blurring of background and building
+boundaries creates severe difﬁcu lties in accurately extracting
+buildings. However, it can be seen from Fig. 10(e) that com-
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+ZHOU et al. : BOMSC-NET BASED BUILDING EXTRACTION FROM HIGH-RESOLUTION REMOTE SENSING IMAGERY 5618617
+Fig. 10. Building extraction results on the Inria Aerial Image Labelin g Dataset. Rows show test images for different cities. (a) Austin (USA).
+(b) Chicago (USA). (c) Kitsap (USA). (d) Tyrol (Austria). (e) Vienna (Austria).
+pared with other models, BOMSC-Net can accurately identify
+the shape of buildings and achieve reﬁned segmentation.
+In this study, a quantitative evaluation of the Inria Aerial
+Image Labeling Dataset was ca rried out, and the evaluation
+results are shown in Table III. BOMSC-Net achieves the
+highest scores in terms of F1,I o U , R-value, and P-value.
+Therefore, comprehensive evaluation of the method proposed
+in this article is better than other methods, and BOMSC-Net
+is more robust and genera lizable. Speciﬁcally, the R-value is
+signiﬁcantly higher than that of other methods, 1.57% higher
+than the second place. This shows that BOMSC-Net can
+effectively solve the missing segmentation of buildings and
+achieve complete results in the face of large-scale buildings.
+Boundary optimization and integrity descriptions of buildings
+are complementary. Therefore, effective boundary optimiza-
+tion can better promote the improvement of regional accuracy.
+In particular, in the boundary evaluation metrics, BOMSC-Net
+achieves the highest scoring SSIM and the second lowest
+scoring 95% HD, which are 84.31% and 285.79, respectively.
+The proposed BOMSC-Net can be more advantageous in
+learning boundary features.
+D. Ablation Analyses
+1) Inﬂuence of Different Modules: This study included
+ablation experiments on the Massachusetts building dataset
+to better understand the impact of each module in the
+proposed BOMSC-Net. The basic network, the MSCAM, and
+the DFOM are deleted or replaced in BOMSC-Net to show
+the inﬂuence of these modules on the network.
+First, this study veriﬁes the effectiveness of the basic net-
+work of BOMSC-Net. Second, we remove MSCAM, leaving
+only the basic network and DFOM, to verify the effectiveness
+of DFOM in BOMSC-Net. Third, we remove DFOM and
+add MSCAM based on the basic network. Since DFOM is
+removed, we adjust the loss function. This study removes LDF
+from the hybrid loss function, leaving only LBCE and Ldice.
+Simultaneously, α and γ are set to 0.6 and 0.4, respectively.
+Second, we add MSCAM based on the basic network, and the
+loss remains the same. Finally, we stack DFOM based on this
+network, and LDF needs to be introduced in the hybrid loss
+function. At this time, the hybrid loss function is mentioned
+above. Fig. 11 shows some representative experimental results.
+Fig. 11(A) and (B) shows optical images and the ground
+truth, respectively. Fig. 11(C)–(F) shows the test results of
+the basic network, basic network with DFOM, basic network
+with MSCAM, and BOMSC-Net, respectively.
+Fig. 11 shows that when the basic network is combined
+with different modules, the results of building segmentation in
+different complex scenes are changed. This study shows the
+segmentation results in Fig. 11(a), (b), (c), (d), and (e)—roof
+shadows, incorrect labels, material changes, tree occlusions,
+and complex building shapes, respectively. These are shown
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+5618617 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 60, 2022
+TABLE III
+QUANTITA TIVE EVA L UAT I O N O N T H EINRIA AERIAL IMAGE LABELING DATAS ET
+Fig. 11. Building extraction results of different module combinations. Segme ntation is shown with (a) roof shadows, (b) incorrect labels, (c) mater ial changes,
+(d) tree occlusions, and (e) complex building shapes. The results are shown in (A) optical images, (B) ground truth, (C) basic network, (D) basic netwo rk +
+DFOM, (E) basic network + MSCAM, and (F) BOMSC-Net, respectively.
+in Fig. 11(a)–(e). The results of the third column [Fig. 11(C)]
+show that the basic network already has good learning
+capabilities and can accurately se gment buildings under these
+complex scenarios. However, it is clear that the segmentation
+results still need to be improved in terms of shape and
+building integrity. [Fig. 11(D)] shows the effect of adding
+DFOM to the basic network. Fig. 11 shows that the extracted
+building boundary has been signiﬁcantly improved. As shown
+in the ﬁfth column [Fig. 11(E)], the basic network with the
+MSCAM can effectively infer the contextual information
+of the buildings in scenes with shadows, occlusions, etc.,
+to learn complete building shape. Finally, the sixth column
+shows the visible view with BOMSC-Net. The shape of the
+building is better optimized than in the previous results, and
+its edges are more regular.
+In addition, we performed a quantitative evaluation, and
+the results are shown in Table IV . Table IV shows that
+our basic network can obtain h igher accuracy and scores
+than the commonly used semantic segmentation networks
+UNet, SegNet, and DeepLabv3 +. The network performance
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+ZHOU et al. : BOMSC-NET BASED BUILDING EXTRACTION FROM HIGH-RESOLUTION REMOTE SENSING IMAGERY 5618617
+TABLE IV
+QUANTITA TIVE EVA L UAT I O N O FABLATION EXPERIMENTS
+Fig. 12. Visualization of feature maps for AGs. xl and ˆxl, l ∈[ 1, 2, 3, 4] represent the input and output feature maps of each layer of AGs.
+Fig. 13. Feature map visualization for GRBs. Y and Y′ represent the input and output feature maps of MSCAM, respectively. xi and x′i, i ∈[ 0, 1, 2, 3]represent the input and output feature maps of GRBs, respectively. Among them, x0 represents the feature map w ithout max-pooling operation; x1, x2, x3
+represent the feature maps with max-poo ling operations whose kernel size is 2 × 2, 3 × 3, and 5 × 5.
+TABLE V
+INFLUENCE OF AG
+improves between the R-value and P-value, which reduces
+building omissions and misclassiﬁcations as much as possible.
+The network can obtain a higher score at the cost of reducing
+the accuracy. Compared with th e results of the basic net-
+work, most indicators increased signiﬁcantly, among which the
+R-value increased by 4.78%. T his indicates that the DFOM
+rectiﬁes the direction through DF, which is helpful for the
+network to learn correct boundary. However, theP-value of the
+“basic network + DFOM” decreased by 1.94%. This implies
+that the DFOM cannot guarantee the recognition of more
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+5618617 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 60, 2022
+TABLE VI
+INFLUENCE OF GRAPH REASONING BLOCK
+TABLE VII
+INFLUENCE OF RECTIFICATION STEPS
+complete buildings. At the same time, compared with the basic
+network, the P-value of “basic network + MSCAM” only
+decreased by 0.47%, while the oth ers increased signiﬁcantly.
+This demonstrates that the MSC AM can effectively alleviate
+the incompleteness of building extraction and achieve accurate
+segmentation as much as possible. Ultimately, the P-value of
+BOMSC-Net was only slightly reduced by 0.19%, while the
+other indicators were improved. OA, R-value, F1,a n dI o U
+increased by 0.77%, 5.27%, 2.72%, and 4.63%, respectively.
+This shows that the common use of DFOM and MSCAM
+can promote the effectiveness of the network. In addition to
+the great improvement in the semantic segmentation metrics,
+BOMSC-Net makes progress in the boundary metrics. After
+adding DFOM to the basic network, 95% HD and SSIM are
+particularly improved. The 95% HD decreases by 68.34, while
+SSIM increases by 2.45%. This shows that DFOM signiﬁ-
+cantly promotes the shape description of buildings. Table IV
+shows that the basic network with MSCAM can also improve
+the network performance as much as possible and optimize
+building boundaries. In the end, compared with the basic
+network, 95% HD of BOMSC-Net was signiﬁcantly reduced
+by 95.64, and SSIM was also signiﬁcantly increased by
+4.12%. This shows that BOMSC-Net can realize optimization
+and complete description of the boundary information of the
+building.
+2) Inﬂuence of the AGs: To verify the effectiveness of AGs,
+this study conducted experiments based on the basic network.
+Speciﬁcally, all the AGs in the basic network are removed, and
+only the backbone is retained. At this time, the loss function is
+consistent with the ablation experiment of the basic network.
+The results of the accuracy ev aluation are shown in Table V .
+It can be seen from the table that the P-value is signiﬁcantly
+improved in the result of adding AGs. More buildings can be
+accurately identiﬁed, which indi cates that AGs can encourage
+the model to focus on salient building areas in the images.
+In Fig. 12, this study visualizes the input feature map xl
+and output feature map ˆ xl, l ∈[ 1, 2, 3, 4] of each layer of
+AGs. Fig. 12 shows that ˆ xl pays more attention to buildings
+than xl . In particular, ˆ x1 is more prominent than low-level
+characteristics of x1, but the semantic information is not rich
+enough; ˆx4 has more complete semantic information than x4,
+especially ˆx4 which has a signiﬁcantly lower impact on the
+water body than x4.
+3) Inﬂuence of the GRBs: To analyze the inﬂuence of
+GRBs, this study conducted experiments based on “basic
+network + MSCAM.” Speciﬁcally, this study removed all
+the GRBs in the MSCAM and retained only other convo-
+lution operations and maximum pooling operations. Then,
+we compare the experimental results of “basic network +
+MSCAM” and “basic network + MSCAM without GRBs”
+on the Massachusetts building dataset. As shown in Table VI,
+GRBs have advantages over all the indicators without GRBs.
+GRBs can signiﬁcantly increase the R-value and minimize
+the loss of the P-value, which shows that GRBs help learn
+complete building information. The results of visualization are
+shown in Fig. 13. Y and Y′ represent the input and output
+feature maps of the MSCAM, respectively. It can be clearly
+seen that Y′ can effectively perceive the global information of
+the building. In particular, the irrelevant background in Y′ can
+be effectively eliminated. xi and x′i, i ∈[ 0, 1, 2, 3] represent
+the input and output feature maps of GRBs, respectively, where
+x0 represents the feature map without max-pooling operation,
+and x1, x2, x3 represents the feature maps with max-pooling
+operations whose kernel size is 2 × 2, 3 × 3, and 5 × 5.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+ZHOU et al. : BOMSC-NET BASED BUILDING EXTRACTION FROM HIGH-RESOLUTION REMOTE SENSING IMAGERY 5618617
+TABLE VIII
+QUANTITA TIVE EVA L UAT I O N O FPARAMETERS OF DIFFERENT MAIN MODULES
+Obviously, x′0 and x′2 can highlight the building area more
+than x0 and x2.
+4) Inﬂuence of the Rectiﬁcation Step (N): In this study,
+experiments are conducted based on the “basic network +
+DFOM” to explore the inﬂuence of rectiﬁcation N on the
+network. Set N = 1, 3, 5, 7, and 9, and the experimental
+results are shown in Table VII. Table VII shows that OA, F1,
+and IoU are basically in a normal distribution. Taken together,
+when N = 5, OA, F1, IoU, and SSIM all achieved the highest
+scores. The feature optimization of DFOM cannot be satisﬁed
+when N is too small; the rectiﬁcation result deviates from the
+true value when N is too large.
+5) Parameter Analysis: This study also counted the model
+parameters of different main modules. Speciﬁcally, this study
+calculated the model parameters of the basic network, “basic
+network + DFOM,” “basic network + MSCAM,” and
+BOMSC-Net. It can be seen from Table VIII that the number
+of model parameters of “basic network + DFOM” has only
+increased by 0.008(M) compared with the basic network.
+On the other hand, compared with the basic network, the
+model parameter amount of “basic network + MSCAM” has
+increased by 94.43(M). Compared with MSCAM, DFOM has
+only a slight increase in the parameters of BOMSC-Net.
+Because four GRBs are used in MSCAM, the parameter
+quantity of the model is obviously increased.
+V. C ONCLUSION
+This study explores the shortcomings of the existing meth-
+ods for extracting buildings from high-resolution remote sens-
+ing images based on deep learning. Inaccurate boundary
+extraction and incomplete building extraction are the key
+problems of current building extraction. Therefore, this study
+proposes a building extraction method (BOMSC-Net) that
+simultaneously considers boundary optimization and multi-
+scale context awareness to address inaccurate building bound-
+aries and incomplete extraction results. The experimental
+results on three open-source datasets show that the pro-
+posed BOMSC-Net can optimize boundaries and enhance
+context awareness. In complex environments, such as those
+with shadow and tree occlusions, BOMSC-Net can accurately
+extract the boundaries of buildings and can achieve com-
+plete extraction of buildings of different scales. To verify
+the performance of our network, this study not only uses
+general semantic segmentation evaluation metrics but also
+uses boundary evaluation metrics to quantitatively illustrate
+the advantages of BOMSC-Net in boundary optimization.
+Compared with previous work, the extraction results are
+signiﬁcantly improved. The test results include higher R-
+value, F1-score, and IoU than the comparison method, indi-
+cating that our method can maintain a balance between R-
+value and P-value and reduce false an d missed segmentation.
+BOMSC-Net achieves excellent scores for 95% HD and SSIM,
+showing that it can achieve building boundary optimiza-
+tion. This study also includes ablation experiments to verify
+that MSCAM and DFOM signiﬁcantly improve the network
+performance.
+However, the method in this study has some shortcomings.
+BOMSC-Net may have the same enhancement effect on fea-
+tures similar to buildings, so there would be some misclas-
+siﬁcations in places where build ings and similar features are
+present. The method of GRB would be restricted in cases of
+severe occlusion by shadows and trees. We will consider multi-
+spectral and multi-source data fusion to solve these problems
+in future work.
+REFERENCES
+[1] Revision of World Urbanization Prospects , United Nations, New York,
+NY , USA, 2018.
+[2] Z. Huang, G. Cheng, H. Wang, H. Li, L. Shi, and C. Pan, “Building
+extraction from multi-source remote sensing images via deep deconvo-
+lution neural networks,” in Proc. IEEE Int. Geosci. Remote Sens. Symp.
+(IGARSS), Jul. 2016, pp. 1835–1838.
+[3] W. Li, C. He, J. Fang, and H. Fu, “Semantic segmentation based building
+extraction method using multi-source GIS map datasets and satellite
+imagery,” in Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit.
+Workshops (CVPRW), Jun. 2018, pp. 238–241.
+[4] M. Turker and D. Koc-San, “Building extraction from high-resolution
+optical spaceborne images using the integration of support vector
+machine (SVM) classiﬁcation, H ough transformation and perceptual
+grouping,” Int. J. Appl. Earth Observ. Geoinf. , vol. 34, pp. 58–69,
+Feb. 2015.
+[5] S. A. N. Gilani, M. Awrangjeb, and G. Lu, “An automatic building
+extraction and regularisation technique using LiDAR point cloud data
+and orthoimage,” Remote Sens. , vol. 8, no. 3, p. 258, Mar. 2016.
+[6] C. Liu, X. Huang, Z. Zhu, H. Chen, X. Tang, and J. Gong, “Automatic
+extraction of built-up area from ZY3 multi-view satellite imagery:
+Analysis of 45 global cities,”Remote Sens. Environ., vol. 226, pp. 51–73,
+Jun. 2019.
+[7] J. P. Cohen, W. Ding, C. Kuhlman, A. Chen, and L. Di, “Rapid building
+detection using machine learning,” Int. J. Speech Technol., vol. 45, no. 2,
+pp. 443–457, Sep. 2016.
+[8] L. Xu, M. Kong, and B. Pan, “Building extraction by stroke width
+transform from satellite imagery,” in Proc. CCF Chin. Conf. Comput.
+Vis., 2017, pp. 340–351.
+[9] J. Wang, X. Yang, X. Qin, X. Ye, and Q. Qin, “An efﬁcient approach
+for automatic rectangular building ext raction from very high resolution
+optical satellite imagery,” IEEE Geosci. Remote Sens. Lett. , vol. 12,
+no. 3, pp. 487–491, Mar. 2015.
+[10] G. Liasis and S. Stavrou, “Building extraction in satellite images using
+active contours and colour features,” Int. J. Remote Sens. , vol. 37, no. 5,
+pp. 1127–1153, Mar. 2016.
+[11] L. Wang, G. Chen, D. Shi, Y . Chang, S. Chan, J. Pu, and X. Yang,
+“Active contours driven by edge entropy ﬁtting energy for image
+segmentation,” Signal Process., vol. 149, pp. 27–35, Aug. 2018.
+[12] D. Chai, “A probabilistic framework for building extraction from air-
+borne color image and DSM,” IEEE J. Sel. Topics Appl. Earth Observ.
+Remote Sens. , vol. 10, no. 3, pp. 948–959, Mar. 2017.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+5618617 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 60, 2022
+[13] M. Teimouri, M. Mokhtarzade, and M . J. Valadan Zoej, “Optimal fusion
+of optical and SAR high-resolution images for semiautomatic building
+detection,” GISci. Remote Sens. , vol. 53, no. 1, pp. 45–62, Jan. 2016.
+[14] Z. Guo and S. Du, “Mining paramete r information for building extraction
+and change detection with very high -resolution imagery and GIS data,”
+GISci. Remote Sens. , vol. 54, no. 1, pp. 38–63, Jan. 2017.
+[ 1 5 ] L .Z h a n g ,J .W u ,Y .F a n ,H .G a o ,a n dY .S h a o ,“ A ne f ﬁ c i e n tb u i l d i n g
+extraction method from high spatial resolution remote sensing images
+b a s e do ni m p r o v e dm a s kR - C N N , ”Sensors, vol. 20, no. 5, p. 1465,
+Mar. 2020.
+[16] Z. Shao, P. Tang, Z. Wang, N. Saleem, S. Yam, and C. Sommai,
+“BRRNet: A fully convolutional neural network for automatic building
+extraction from high-resolution remote sensing images,” Remote Sens. ,
+vol. 12, no. 6, p. 1050, Mar. 2020.
+[17] H. Guo, Q. Shi, A. Marinoni, B. Du, and L. Zhang, “Deep building
+footprint update network: A semi-supervised method for updating exist-
+ing building footprint from bi-temporal remote sensing images,” Remote
+Sens. Environ., vol. 264, Oct. 2021, Art. no. 112589.
+[18] Q. Shi, M. Liu, S. Li, X. Liu, F. Wang, and L. Zhang, “A deeply
+supervised attention metric-based network and an open aerial image
+dataset for remote sensing change detection,” IEEE Trans. Geosci.
+Remote Sens. , vol. 60, pp. 1–16, 2022.
+[19] S. Liu, Q. Shi, and L. Zhang, “Few-shot hyperspectral image
+classiﬁcation with unknown classes using multitask deep learning,”
+IEEE Trans. Geosci. Remote Sens. , vol. 59, no. 6, pp. 5085–5102,
+Jun. 2021.
+[20] Q. Shi, X. Tang, T. Yang, R. Liu, and L. Zhang, “Hyperspectral image
+denoising using a 3-D attention denoising network,” IEEE Trans. Geosci.
+Remote Sens. , vol. 59, no. 12, pp. 10348–10363, Dec. 2021.
+[21] C. Zhang, I. Sargent, X. Pan, H. Li, A. Gardiner, J. Hare, and
+P. M. Atkinson, “Joint deep learning for land cover and land use
+classiﬁcation,” Remote Sens. Environ., vol. 221, pp. 173–187, Feb. 2019.
+[22] D. He, Q. Shi, X. Liu, Y . Zhong, and X. Zhang, “Deep subpixel
+mapping based on semantic information modulated network for urban
+land use mapping,” IEEE Trans. Geosci. Remote Sens. , vol. 59, no. 12,
+pp. 10628–10646, Dec. 2021.
+[23] D. Zhang et al., “A generalized approach based on convolutional neural
+networks for large area cropland mapping at very high resolution,”
+Remote Sens. Environ. , vol. 247, Sep. 2020, Art. no. 111912.
+[24] M. Guo, H. Liu, Y . Xu, and Y . Huang, “Building extraction based
+on U-Net with an attention block and multiple losses,” Remote Sens. ,
+vol. 12, no. 9, p. 1400, Apr. 2020.
+[25] W. Boonpook, Y . Tan, and B. Xu, “Deep learning-based multi-feature
+semantic segmentation in building extraction from images of UA V pho-
+togrammetry,” Int. J. Remote Sens. , vol. 42, no. 1, pp. 1–19, Jan. 2021.
+[26] M. Chen et al. , “DR-Net: An improved network for building extraction
+from high resolution remote sensing image,”Remote Sens., vol. 13, no. 2,
+p. 294, Jan. 2021.
+[27] S. Wang, X. Hou, and X. Zhao, “Automatic building extraction from
+high-resolution aerial imagery via fu lly convolutional encoder-decoder
+network with non-local block,” IEEE Access , vol. 8, pp. 7313–7322,
+2020.
+[28] Z. Zhang, W. Guo, M. Li, and W. Yu, “GIS-supervised building
+extraction with label noise-adaptive fully convolutional neural network,”
+IEEE Geosci. Remote Sens. Lett. , vol. 17, no. 12, pp. 2135–2139,
+Dec. 2020.
+[29] B. Sariturk, B. Bayram, Z. Duran, and D. Z. Seker, “Feature extraction
+from satellite images using segnet and fully convolutional networks
+(FCN),” Int. J. Eng. Geosci. , pp. 138–143, Oct. 2020.
+[30] S. He and W. Jiang, “Boundary-assisted learning for building extraction
+from optical remote sensing imagery,” Remote Sens. , vol. 13, no. 4,
+p. 760, Feb. 2021.
+[31] H. Jung, H.-S. Choi, and M. Kang, “Boundary enhancement semantic
+segmentation for building extraction from remote sensed image,” IEEE
+Trans. Geosci. Remote Sens. , vol. 60, pp. 1–12, 2022.
+[32] J. Ma, L. Wu, X. Tang, F. Liu, X. Zhang, and L. Jiao, “Building
+extraction of aerial images by a global and multi-scale encoder-decoder
+network,” Remote Sens. , vol. 12, no. 15, p. 2350, Jul. 2020.
+[33] Y . Xu, L. Wu, Z. Xie, and Z. Chen, “Building extraction in very
+high resolution remote sensing imagery using deep learning and guided
+ﬁlters,” Remote Sens. , vol. 10, no. 1, p. 144, 2018.
+[34] Y . Xie et al. , “Reﬁned extraction of building outlines from high-
+resolution remote sensing imagery based on a multifeature convolutional
+neural network and morphological ﬁltering,” IEEE J. Sel. Topics Appl.
+Earth Observ. Remote Sens. , vol. 13, pp. 1842–1855, 2020.
+[35] B. Zhang, C. Wang, Y . Shen, and Y . Liu, “Fully connected conditional
+random ﬁelds for high-resolution rem ote sensing land use/land cover
+classiﬁcation with convolutional neural networks,”Remote Sens., vol. 10,
+no. 12, p. 1889, Nov. 2018.
+[36] Q. Zhu, Z. Li, Y . Zhang, and Q. Guan, “Building extraction from
+high spatial resolution remote sensing images via multiscale-aware and
+segmentation-prior conditional random ﬁelds,” Remote Sens. , vol. 12,
+no. 23, p. 3983, Dec. 2020.
+[37] J. Sun, W. Li, Y . Zhang, and W. Gong, “Building segmentation of remote
+sensing images using deep neural networks and domain transform CRF,”
+Proc. SPIE, vol. 11155, Oct. 2019, Art. no. 111550N.
+[38] G. Wu et al., “A boundary regulated network for accurate roof segmen-
+tation and outline extraction,” Remote Sens. , vol. 10, no. 8, p. 1195,
+Jul. 2018.
+[39] J. Zhou, M. Hao, D. Zhang, P. Zou, and W. Zhang, “Fusion PSPnet
+image segmentation based method for multi-focus image fusion,” IEEE
+Photon. J., vol. 11, no. 6, pp. 1–12, Dec. 2019.
+[40] S. C. Yurtkulu, Y . H. Sahin, and G. Unal, “Semantic segmentation
+with extended DeepLabv3 architecture,” in Proc. 27th Signal Process.
+Commun. Appl. Conf. (SIU) , Apr. 2019, pp. 1–4.
+[41] J. Zhang, S. Lin, L. Ding, and L. Bruzzone, “Multi-scale context aggre-
+gation for semantic segmentation of remote sensing images,” Remote
+Sens., vol. 12, no. 4, p. 701, Feb. 2020.
+[42] G. Sun, H. Huang, A. Zhang, F. Li, H. Zhao, and H. Fu, “Fusion of
+multiscale convolutional neural networks for building extraction in very
+high-resolution images,” Remote Sens. , vol. 11, no. 3, p. 227, 2019.
+[43] Y . Liu, L. Gross, Z. Li, X. Li, X. Fan, and W. Qi, “Automatic
+building extraction on high-resolution remote sensing imagery using
+deep convolutional encoder-decoder with spatial pyramid pooling,”IEEE
+Access, vol. 7, pp. 128774–128786, 2019.
+[44] Y . Jin, W. Xu, C. Zhang, X. Luo, and H. Jia, “Boundary-aware reﬁned
+network for automatic building extraction in very high-resolution urban
+aerial images,” Remote Sens. , vol. 13, no. 4, p. 692, Feb. 2021.
+[45] D.-Y . Chen, L. Peng, W.-C. Li, and Y .-D. Wang, “Building extraction and
+number statistics in WUI areas based on UNet structure and ensemble
+learning,” Remote Sens. , vol. 13, no. 6, p. 1172, Mar. 2021.
+[46] O. Oktay et al. , “Attention U-Net: Learning where to look for the
+pancreas,” 2018, arXiv:1804.03999.
+[47] H. Fukui, T. Hirakawa, T. Yamashita, and H. Fujiyoshi, “Attention
+branch network: Learning of atten tion mechanism for visual explana-
+tion,” in Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR) ,
+Jun. 2019, pp. 10705–10714.
+[48] H. Yang, P. Wu, X. Yao, Y . Wu, B. Wang, and Y . Xu, “Building
+extraction in very high resolution imagery by dense-attention networks,”
+Remote Sens. , vol. 10, no. 11, p. 1768, 2018.
+[49] X. Pan et al. , “Building extraction from high-resolution aerial imagery
+using a generative adversarial network with spatial and channel attention
+mechanisms,” Remote Sens. , vol. 11, no. 8, p. 917, Apr. 2019.
+[50] Y . Chen, M. Rohrbach, Z. Yan, Y . Shuicheng, J. Feng, and Y . Kalantidis,
+“Graph-based global reasoning networks,” in Proc. IEEE/CVF Conf.
+Comput. Vis. Pattern Recognit. (CVPR) , Jun. 2019, pp. 433–442.
+[51] J. Li et al. , “Multi-scale GCN-assisted two-stage network for joint
+segmentation of retinal layers and discs in peripapillary OCT images,”
+Biomed. Opt. Exp. , vol. 12, no. 4, pp. 2204–2220, 2021.
+[52] F. Cheng et al. , “Learning directional feature maps for cardiac MRI
+segmentation,” in Proc. Int. Conf. Med. Image Comput. Comput.-Assist.
+Intervent., 2020, pp. 108–117.
+[53] Z. Dong, J. Li, T. Fang, and X. Sha o, “Lightweight boundary reﬁnement
+module based on point supervision for semantic segmentation,” Image
+Vis. Comput., vol. 110, Jun. 2021, Art. no. 104169.
+[54] H. Embrechts and D. Roose, “A parallel Euclidean distance transfor-
+mation algorithm,” Comput. Vis. Image Understand. , vol. 63, no. 1,
+pp. 15–26, Jan. 1996.
+[55] V . Mnih, Machine Learning for Aerial Image Labeling . Toronto, ON,
+Canada: Univ. Toronto, 2013.
+[56] S. Ji, S. Wei, and M. Lu, “Fully convolutional networks for multisource
+building extraction from an open aerial and satellite imagery data
+set,” IEEE Trans. Geosci. Remote Sens. , vol. 57, no. 1, pp. 574–586,
+Jan. 2019.
+[57] D. P. Huttenlocher, G. A. Klanderman, and W. J. Rucklidge, “Comparing
+images using the Hausdorff distance,” IEEE Trans. Pattern Anal. Mach.
+Intell., vol. 15, no. 9, pp. 850–863, Sep. 1993.
+[58] Z. Wang, A. C. Bovik, H. R. Sheikh, and E. P. Simoncelli, “Image
+quality assessment: From error visibility to structural similarity,” IEEE
+Trans. Image Process. , vol. 13, no. 4, pp. 600–612, Apr. 2004.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 
+ZHOU et al. : BOMSC-NET BASED BUILDING EXTRACTION FROM HIGH-RESOLUTION REMOTE SENSING IMAGERY 5618617
+[59] O. Ronneberger, P. Fischer, and T. Brox, “U-Net: Convolutional net-
+works for biomedical image segmentation,” in Proc. Int. Conf. Med.
+Image Comput. Comput.-Assist. Intervent. , 2015, pp. 234–241.
+[60] L.-C. Chen, Y . Zhu, G. Papandreou, F. Schroff, and H. Adam, “Encoder–
+decoder with atrous separable convolution for semantic image segmen-
+tation,” in Proc. Eur . Conf. Comput. Vis. (ECCV) , 2018, pp. 801–818.
+[61] V . Badrinarayanan, A. Kendall, and R. Cipolla, “SegNet: A deep
+convolutional encoder–decoder arch itecture for image segmentation,”
+IEEE Trans. Pattern Anal. Mach. Intell. , vol. 39, no. 12, pp. 2481–2495,
+Jan. 2017.
+[62] Q. Zhu, C. Liao, H. Hu, X. Mei, and H. Li, “MAP-Net: Multiple
+attending path neural network for bu ilding footprint extraction from
+remote sensed imagery,” IEEE Trans. Geosci. Remote Sens. , vol. 59,
+no. 7, pp. 6169–6181, Jul. 2021.
+[63] S. Ran, X. Gao, Y . Yang, S. Li, G. Zhang, and P. Wang, “Building
+multi-feature fusion reﬁned network for building extraction from high-
+resolution remote sensing images,” Remote Sens. , vol. 13, no. 14,
+p. 2794, Jul. 2021.
+[64] P. Liu et al., “Building footprint extraction from high-resolution images
+via spatial residual inception convolutional neural network,” Remote
+Sens., vol. 11, no. 7, p. 830, 2019.
+[65] K. Chen, Z. Zou, and Z. Shi, “Building extraction from remote sensing
+images with sparse token transformers,” Remote Sens. , vol. 13, no. 21,
+p. 4441, Nov. 2021.
+Yuan Zhou received the B.S. degree in surveying
+and mapping engineering from Anhui Agricultural
+University, Hefei, China, in 2018. She is currently
+pursuing the M.S. degree in surveying and mapping
+engineering with the National Engineering Research
+Center of Geographic Information System, Wuhan,
+China.
+Her major research interests include intelligent
+interpretation of remote sensing images and image
+processing.
+Zhanlong Chen received the B.S. and M.S. degrees
+in cartology and geographic information engineer-
+ing from the Kunming University of Science and
+Technology, Kunming, China, in 2003 and 2006,
+respectively, and the Ph.D. degree in cartology and
+geographic information engineering from the China
+University of Geosciences, Wuhan, China, in 2009.
+He is currently a Full Professor with the School
+of Geography and Information Engineering, China
+University of Geosciences. His research interests
+include intelligent mining of spatio-temporal data
+and high-performance spatial intelligence computation.
+Bin Wang received the B.S. degree in geographic
+information science from the Guilin University of
+Technology, Guilin, China, in 2019. He is currently
+pursuing the M.S. degree in cartology and geo-
+graphic information engineering with the School
+of Geography and Information Engineering, China
+University of Geosciences, Wuhan, China.
+His major research interests include intelligent
+interpretation of remote sensing images and geolog-
+ical text information extraction.
+Shuangjiang Li received the B.S. degree in geo-
+graphic information science from the Hebei Univer-
+sity of Engineering, Handan, China, in 2019. He is
+currently pursuing the M.S. degree in cartography
+and geographical information engineering with the
+School of Geography and Information Engineering,
+China University of Geosciences, Wuhan, China.
+His major research interest includes intelligent
+interpretation of remote sensing images.
+Hao Liu received the B.S. degree in geological engi-
+neering from Henan Polytechnic University, Jiaozuo,
+China, in 2019. He is currently pursuing the M.S.
+degree in software engineering with the School
+of Geography and Information Engineering, China
+University of Geosciences, Wuhan, China.
+His major research interests include natural lan-
+guage processing and geological text information
+extraction.
+Daozhu Xu received B.S., M.S., and Ph.D. degrees
+in cartology and geographic information engineering
+from Institute of Survey and Mapping, Zhengzhou,
+China, in 2004, 2007, and 2017, respectively.
+He is currently an Associated Professor with the
+Xi’an Research Institute of Surveying and Mapping,
+Xi’an, China. His research interests include linked
+data and intelligent mining of spatial data.
+Chao Ma received the B.S., M.S., and Ph.D. degrees
+in cartology and geographic information engineer-
+ing from the Institute of Survey and Mapping,
+Zhengzhou, China, in 2010, 2013, and 2017,
+respectively.
+He is currently an Associated Professor with the
+Xi’an Research Institute of Surveying and Mapping,
+Xi’an, China. His research interest includes intelli-
+gent mining of spatial data.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:04:58 UTC from IEEE Xplore.  Restrictions apply. 

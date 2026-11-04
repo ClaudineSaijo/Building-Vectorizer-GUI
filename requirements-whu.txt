@@ -1,0 +1,5 @@
+# WHU / GPU 训练环境（在 Colab 或带 NVIDIA 显卡的机器上安装）
+# pip install -r requirements-whu.txt
+-r requirements.txt
+segmentation-models-pytorch>=0.4
+timm>=1.0

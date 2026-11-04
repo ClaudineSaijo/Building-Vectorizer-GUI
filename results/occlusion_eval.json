@@ -1,0 +1,16 @@
+{
+  "whu_mt512": {
+    "tiles": 49,
+    "mIoU": 0.8223,
+    "polygon_iou": 0.7953,
+    "mean_vertices": 8.17,
+    "polygons": 17.4
+  },
+  "whu_shadow": {
+    "tiles": 49,
+    "mIoU": 0.8205,
+    "polygon_iou": 0.794,
+    "mean_vertices": 8.3,
+    "polygons": 18.0
+  }
+}

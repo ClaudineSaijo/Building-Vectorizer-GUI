@@ -1,0 +1,68 @@
+{
+  "model": "whu_prior",
+  "split": "test",
+  "samples": 150,
+  "threshold": 0.55,
+  "rows": [
+    {
+      "config": "A 仅掩膜",
+      "polygon_iou": 0.5599,
+      "chamfer_matched": 1.66,
+      "polis": 8.2,
+      "mean_vertices": 20.2,
+      "right_angle_rate": 0.359,
+      "area_bias": -0.022,
+      "topology_valid": 0.998,
+      "merge_rate": 0.056,
+      "vertex_reduction": 0.0
+    },
+    {
+      "config": "B +边界分离",
+      "polygon_iou": 0.5532,
+      "chamfer_matched": 1.67,
+      "polis": 8.0,
+      "mean_vertices": 19.5,
+      "right_angle_rate": 0.361,
+      "area_bias": -0.034,
+      "topology_valid": 0.997,
+      "merge_rate": 0.05,
+      "vertex_reduction": 0.035
+    },
+    {
+      "config": "C +顶点回归",
+      "polygon_iou": 0.5502,
+      "chamfer_matched": 1.8,
+      "polis": 12.32,
+      "mean_vertices": 5.8,
+      "right_angle_rate": 0.528,
+      "area_bias": -0.036,
+      "topology_valid": 0.994,
+      "merge_rate": 0.052,
+      "vertex_reduction": 0.713
+    },
+    {
+      "config": "D +几何规则化",
+      "polygon_iou": 0.5477,
+      "chamfer_matched": 1.92,
+      "polis": 12.4,
+      "mean_vertices": 5.8,
+      "right_angle_rate": 0.627,
+      "area_bias": -0.038,
+      "topology_valid": 0.994,
+      "merge_rate": 0.051,
+      "vertex_reduction": 0.713
+    },
+    {
+      "config": "E +遮挡补全",
+      "polygon_iou": 0.547,
+      "chamfer_matched": 1.96,
+      "polis": 12.47,
+      "mean_vertices": 5.8,
+      "right_angle_rate": 0.627,
+      "area_bias": -0.037,
+      "topology_valid": 0.994,
+      "merge_rate": 0.051,
+      "vertex_reduction": 0.713
+    }
+  ]
+}

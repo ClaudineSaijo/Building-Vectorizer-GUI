@@ -1,0 +1,1010 @@
+Received 6 August 2026, accepted 22 September 2026, date of publication 1 October 2026, date of current version 8 October 2026.
+Digital Object Identifier 10.1 109/ACCESS.2026.3739228
+CornerDYO: An Efficient Corner–Edge Reasoning
+Framework for Structured Building Vectorization
+From Remote-Sensing Images
+WENWEN FENG
+ 1,3, XIAO CEN
+ 2, SITI KHADIJAH ALI
+ 1, AND RAHMITA WIRZA O. K. RAHMAT
+ 1
+1Department of Multimedia, Faculty of Computer Science and Information Technology, Universiti Putra Malaysia, Serdang 43400, Malaysia
+2School of Information Engineering, Guangxi V ocational University of Agriculture, Nanning, Guangxi 530003, China
+3School of Information Engineering, Guangxi Polytechnic of Construction, Nanning, Guangxi 530007, China
+Corresponding author: Xiao Cen (cenx@gxnzd.edu.cn)
+This work was supported in part by the 2024 Key Project of Guangxi V ocational Education Teaching Reform Research, under
+Grant GXGZJG2024A023; in part by the 2026 General Project of Guangxi V ocational Education Teaching Reform Research, under
+Grant GXGZJG2026B070; in part by the 2025 Key Project of Guangxi Electronic Information V ocational Education Teaching Steering
+Committee, under Grant DZXX2025A04; and in part by Guangxi Polytechnic of Construction under Grant 2025KJYB13.
+ABSTRACT Structured building vectorization from high-resolution remote-sensing imagery provides
+essential geometric representations for urban mapping, digital twin construction, and geographic information
+systems (GIS). However, existing structured reconstruction approaches may still suffer from incomplete
+vertex localization, unstable edge connectivity, and increased computational demands when processing
+complex urban scenes. This article presents CornerDYO, an efficient corner–edge reasoning framework
+for structured building vectorization from remote-sensing images. The proposed framework integrates
+high-resolution feature enhancement, bidirectional feature fusion, context refinement, and corner-aware
+attention to improve geometric representation and structural connectivity. Experiments are conducted on the
+Outdoor Architecture Reconstruction benchmark introduced in previous structured reconstruction studies,
+containing 2,001 satellite image patches from Paris, Las V egas, and Atlanta. Under the controlled evaluation
+setting, CornerDYO achieves 98.5% precision, 95.0% recall, and 96.7% F1-score for corner detection at
+512 × 512 resolution, outperforming HEA T by 8.0 percentage points in F1-score. For edge detection,
+CornerDYO improves the F1-score from 79.7% to 83.8%. Moreover, under the same 500-epoch training
+schedule, CornerDYO reduces the training time from 6 h 28 min to 2 h 22 min. These results demonstrate
+that CornerDYO provides an accurate structural primitive extraction front end for remote-sensing building
+vectorization, achieving improved geometric prediction performance with reduced training time under the
+same experimental setting.
+INDEX TERMS Building vectorization, structured reconstruction, corner–edge reasoning, remote sensing,
+planar graph, multi-scale feature fusion.
+I. INTRODUCTION
+Structured building vectorization from high-resolution
+remote-sensing imagery plays an important role in urban
+mapping, digital twins, disaster assessment, smart city
+management, and geographic information systems (GIS).
+Compared with raster masks, dense point clouds, or boundary
+probability maps, vectorized building representations are
+The associate editor coordinating the review of this manuscript and
+approving it for publication was Damon Daylamani-Zad
+ .
+compact, editable, and directly compatible with CAD/GIS
+workflows. For Level-of-Detail 2 (LoD2)-oriented building
+modeling, the target representation is not merely a building
+footprint but an ordered set of roof polygons that preserves
+roof boundaries, ridges, intersections, and internal structural
+edges [1], [2], [3].
+Among different geometric primitives, corners and edges
+are particularly critical. Corners define roof vertices and
+polygon endpoints, whereas edges encode structural con-
+nectivity between vertices. Missed or inaccurately localized
+VOLUME 14, 2026
+
+ 2026 The Authors. This work is licensed under a Creative Commons Attribution 4.0 License.
+For more information, see https://creativecommons.org/licenses/by/4.0/ 152661
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+corners may lead to incomplete roof outlines, distorted
+polygon shapes, or invalid graph cycles. Similarly, bro-
+ken or incorrectly connected edges can interrupt polygon
+closure and reduce topological consistency. A practical
+building vectorization front end should therefore recover
+complete vertices, preserve spatial accuracy, and infer
+reliable corner-to-corner adjacency under complex rooftop
+conditions.
+Existing methods related to this task can be broadly
+divided into three categories: mask-based building extrac-
+tion [4], generic line or wireframe detection, and structured
+building reconstruction. Mask-based approaches, such as
+semantic segmentation and instance segmentation models,
+can achieve strong region-level building extraction perfor-
+mance. However, their outputs are usually raster masks or
+boundary maps. To obtain vectorized polygons, additional
+contour tracing, simplification, regularization, and topol-
+ogy repair are often required [5]. These post-processing
+steps may introduce geometric errors, especially in scenes
+with occlusion, weak roof texture, shadows, repetitive
+roof patterns, small roof junctions, and non-Manhattan
+layouts.
+Learning-based line and wireframe detection methods
+provide more structured outputs than dense segmenta-
+tion. Methods such as L-CNN, HAWP , and LETR have
+advanced junction detection, line segment grouping, and
+wireframe parsing. Nevertheless, generic line detection does
+not directly guarantee valid roof topology. In building
+vectorization, it is not sufficient to detect visually salient
+line segments independently; the detected primitives must
+support stable vertex ordering, reliable edge adjacency, and
+downstream polygon formation. Missing a single structural
+corner may remove all incident edges from the graph,
+while redundant or incorrect edges may produce invalid
+cycles.
+Recent structured reconstruction frameworks, including
+Conv-MPN [6], HEA T[7], and CornerFormer [8], explicitly
+model corner–edge relationships and have demonstrated
+promising results for architectural structure reconstruction.
+Conv-MPN performs message passing over candidate
+geometric primitives, HEA T introduces transformer-based
+holistic edge attention, and CornerFormer enhances corner
+representation for fine-grained corner–edge reasoning.
+However, these methods may still face two limitations
+when applied to large-scale high-resolution remote-
+sensing imagery. First, message-passing or transformer-
+heavy designs may introduce increased computational
+demands. Second, polygon validity may still be affected
+by missed keypoints, unstable edge connectivity, or post-
+processing-dependent graph formation in complex rooftop
+scenes.
+To address these limitations, this article proposes Cor-
+nerDYO, an efficient corner–edge reasoning framework
+for structured building vectorization from remote-sensing
+images. Unlike raster- or boundary-driven methods that infer
+polygons indirectly, CornerDYO directly predicts corner
+confidence and edge adjacency as structural primitives. The
+predicted vertices and connections are assembled into a pla-
+nar graph, which provides a compact front-end representation
+for downstream polygon-oriented vectorization. The focus
+of this article is therefore on improving corner–edge primitive
+quality rather than claiming complete end-to-end polygon-
+level reconstruction superiority.
+The proposed framework is designed around three task-
+specific considerations. First, roof corners are sparse, local,
+and sensitive to downsampling. To enhance the fused
+representation with fine-grained vertex cues, CornerDYO
+introduces an additional 52 × 52 high-resolution feature
+level together with the original 26 × 26 and 13 × 13
+feature scales. Second, single-direction feature fusion may
+weaken shallow geometric cues. A two-way feature pyra-
+mid is therefore adopted to combine top-down semantic
+propagation with bottom-up geometric aggregation. Third,
+complex rooftop scenes often contain occlusions, weak
+textures, shadows, and repetitive structures. A localized
+Swin-based context refinement block and hybrid channel–
+spatial attention are used to enhance corner-discriminative
+features before corner confidence and edge adjacency
+prediction.
+Compared with HEA T, CornerDYO places greater empha-
+sis on strengthening corner-sensitive feature representation
+before edge-adjacency reasoning. Its architectural distinction
+does not rely on any individual generic module in isolation;
+rather, it lies in the task-specific integration of high-resolution
+feature enhancement, bidirectional multi-scale fusion, local-
+ized context refinement, and corner-aware attention within a
+corner–edge reasoning pipeline.
+The main contributions of this article are summarized as
+follows:
+• An efficient corner–edge reasoning framework is pro-
+posed for structured building vectorization from remote-
+sensing images. The framework explicitly predicts
+vertex-level corner confidence and edge adjacency,
+providing a structural primitive extraction front-end
+for planar graph construction and polygon-oriented
+vectorization.
+• A vertex-preserving feature enhancement design is
+developed by integrating CSPDarknet-Light, an addi-
+tional high-resolution feature level, two-way feature
+pyramid fusion, localized Swin-based context refine-
+ment, and hybrid channel–spatial attention. This design
+is tailored to strengthen sparse roof-junction representa-
+tion and edge-level structural connectivity.
+• Experiments on the Outdoor Architecture Reconstruc-
+tion benchmark demonstrate that CornerDYO improves
+both corner and edge F1-scores in the controlled
+comparison with HEA T while reducing training wall-
+clock time under the same 500-epoch schedule. Pro-
+gressive component-integration and qualitative analyses
+further illustrate how the integrated design contributes
+to corner completeness, edge continuity, and graph-
+oriented structural reliability.
+152662 VOLUME 14, 2026
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+II. RELATED WORK
+A. BUILDING EXTRACTION AND MASK-BASED
+VECTORIZATION
+Building extraction from high-resolution aerial and satellite
+images has been widely studied because of its importance
+in urban mapping, disaster assessment, land management,
+digital-twin construction, and geographic information sys-
+tems (GIS). Early deep-learning-based methods mainly
+formulated building extraction as a semantic or instance seg-
+mentation task. Representative architectures, such as FCN,
+U-Net, Mask R-CNN, DeepLabv3+, and dense semantic
+labeling networks, have achieved strong performance in
+extracting building regions or footprints from remote-sensing
+imagery [9], [10], [11], [12], [13].
+Although mask-based methods are effective for region-
+level building extraction, their outputs are usually raster
+masks or boundary probability maps. Such representations
+are not directly equivalent to vectorized building models
+because they do not explicitly provide ordered vertices,
+edge adjacency, or graph topology. In practical CAD/GIS-
+oriented workflows, raster masks must be converted into
+polygons through contour tracing, boundary simplification,
+geometric regularization, and topology repair. These post-
+processing steps may introduce geometric errors, especially
+in complex rooftop scenes with occlusions, weak textures,
+non-Manhattan layouts, repetitive roof patterns, shadows, and
+small roof junctions.
+Recent building vectorization studies have attempted to
+reduce this raster-to-vector gap [4] by predicting polygonal
+contours, frame fields, graph connections, or learnable
+building contours directly from remote-sensing imagery [4],
+[5], [14], [15], [16]. However, many of these methods
+mainly focus on building footprints or outline polygons. For
+LoD2-oriented roof modeling, structured building vector-
+ization further requires reliable roof-level corners, internal
+structural edges, and graph-oriented primitive reasoning.
+Therefore, building vectorization requires not only accurate
+region extraction but also reliable corner–edge structural
+primitive reasoning.
+B. CORNER, LINE, AND WIREFRAME DETECTION
+Corner, line, and wireframe detection methods provide
+more structured geometric representations than dense seg-
+mentation. Traditional handcrafted line detectors are com-
+putationally efficient, but their performance can degrade
+under shadows, low contrast, weak texture, and clut-
+tered backgrounds. Recent learning-based methods improve
+robustness by directly learning geometric primitives from
+data. L-CNN detects junctions and verifies candidate line
+segments using a line-of-interest pooling mechanism [17].
+HAWP represents line segments through attraction fields
+and improves structural line grouping [18]. LETR formu-
+lates line segment detection as a transformer-based set
+prediction task and avoids dependence on conventional edge
+maps [19]. More recent line segment detectors, such as
+M-LSD [20] and DeepLSD [21], further explore efficient
+line detection and geometric refinement, indicating that
+accurate structural primitive extraction remains important for
+downstream geometry-aware vision tasks. These methods
+have significantly advanced generic wireframe parsing and
+line segment detection.
+However, architectural building vectorization imposes
+stricter structural requirements than generic line detection.
+It is not sufficient to detect visually salient line segments
+independently. The detected primitives should support valid
+vertex connectivity, stable edge adjacency, and downstream
+polygon formation. In roof structure reconstruction, missed
+corners may remove all incident edges from the graph, while
+redundant or incorrectly connected edges may lead to invalid
+cycles. Therefore, remote-sensing building vectorization
+requires a corner–edge reasoning framework that preserves
+both local vertex accuracy and global structural consistency.
+C. STRUCTURED BUILDING RECONSTRUCTION
+Structured building reconstruction aims to infer compact
+geometric representations such as corners, edges, planar
+graphs, and polygons from images. Compared with mask-
+based extraction, structured reconstruction methods [6],
+[7], [8], [14] are more suitable for downstream editing,
+CAD/GIS integration, and LoD-oriented building modeling.
+The CityGML standard and LoD-related studies also empha-
+size that roof structures, semantic surfaces, and geometric
+details are important for practical 3D city modeling and GIS
+applications [1], [2]. In remote-sensing-based 3D building
+vectorization, Wang et al. further showed that roof edges, roof
+corners, and polygonal representations are important interme-
+diate structures for LoD2-oriented building modeling [3].
+Nauata et al. proposed structured outdoor architecture
+reconstruction by exploration and classification, showing
+the importance of explicitly modeling building structure
+rather than relying only on raster outputs [22]. Conv-MPN
+further formulates outdoor architecture reconstruction as
+convolutional message passing over geometric primitives,
+allowing candidate edges to be refined through contextual
+graph reasoning [6]. HEA T introduces holistic edge attention
+and jointly reasons about corners and edges using transformer
+decoders, improving structured reconstruction in complex
+architectural scenes [7]. CornerFormer enhances corner
+representation by transferring fine-grained corner features
+to edge prediction and introducing direction-aware corner
+proposals for adjacent corners and small edges [8].
+These methods demonstrate the effectiveness of explicit
+corner–edge modeling. Nevertheless, message-passing-based
+or transformer-heavy designs may introduce increased
+computational demands when processing large-scale high-
+resolution remote-sensing imagery. In addition, polygon
+validity can still be affected by missed keypoints, unstable
+edge connectivity, unordered vertices, or post-processing-
+dependent graph formation. These limitations motivate an
+efficient framework that preserves the benefits of explicit
+corner–edge reasoning while reducing computational burden
+and improving structural primitive quality.
+VOLUME 14, 2026 152663
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+D. EFFICIENT MUL TI-SCALE AND ATTENTION-BASED
+FEATURE LEARNING
+High-resolution urban imagery contains buildings with
+different scales, roof structures of varying complexity, and
+many sparse or densely distributed junctions. Multi-scale
+feature learning is therefore important for extracting both
+small roof corners and large structural components. Feature
+Pyramid Networks and path aggregation structures combine
+high-level semantic information with low-level spatial details
+and have been widely used in detection and segmentation
+tasks [23], [24]. However, a single top-down fusion pathway
+may weaken shallow geometric cues that are crucial for
+precise corner localization and edge connectivity.
+Compact backbones and attention mechanisms provide
+another way to improve the accuracy-efficiency trade-off.
+CSPNet reduces redundant gradient flow and improves
+computational efficiency while preserving representation
+capability [25]. Swin Transformer introduces shifted-window
+self-attention, which captures local and cross-window con-
+text with lower complexity than global self-attention [26].
+Channel attention and spatial attention modules, such as
+SE and CBAM, adaptively emphasize informative feature
+channels and discriminative spatial regions [27], [28]. These
+mechanisms are useful for suppressing background clutter,
+weak roof textures, shadow-induced ambiguity, and irrelevant
+region responses.
+In the proposed CornerDYO framework, multi-scale fusion
+and attention refinement are not used only for generic
+region saliency enhancement. Instead, they are embedded
+into a corner–edge reasoning pipeline. The additional high-
+resolution feature level is designed to provide fine-grained
+cues for small roof junctions; the two-way feature pyramid
+strengthens the interaction between semantic context and
+shallow geometric cues, and hybrid channel-spatial attention
+refines corner-discriminative features before edge adjacency
+inference.
+E. RESEARCH GAP
+Existing studies have improved building extraction, line
+detection, building polygon extraction, and structured recon-
+struction, but several gaps remain for remote-sensing building
+vectorization. First, segmentation-based methods mainly
+produce raster masks or boundary maps and do not directly
+output ordered corner–edge primitives. Second, polygonal
+building extraction methods improve vectorized footprint
+generation, but many of them mainly focus on outline poly-
+gons rather than roof-level corner–edge structural primitives
+for LoD2-oriented vectorization [3], [4], [5], [14], [15].
+Third, generic line and wireframe detectors can identify
+geometric elements, but they do not necessarily enforce roof-
+level connectivity, polygon closure, or graph validity. Fourth,
+structured reconstruction methods based on message passing
+or transformer reasoning can improve graph-level repre-
+sentation, but they may introduce increased computational
+demands and still depend on post-processing for polygon
+formation. Fifth, generic multi-scale and attention modules
+are often optimized for region-level recognition or visual
+saliency rather than vertex-level structural reasoning.
+To address these gaps, this article proposes CornerDYO,
+an efficient corner–edge reasoning framework for struc-
+tured building vectorization from remote-sensing images.
+CornerDYO explicitly predicts corner confidence and edge
+adjacency, integrates high-resolution multi-scale feature
+extension, two-way feature pyramid fusion, context refine-
+ment, and hybrid channel–spatial attention, and serves as
+a structural primitive extraction front-end for downstream
+planar graph construction and polygon-oriented building
+vectorization.
+III. METHODOLOGY
+A. OVERVIEW OF CornerDYO
+CornerDYO is designed as an efficient corner–edge structural
+primitive extraction framework for building vectorization
+from high-resolution remote-sensing images. Given an RGB
+aerial image patch I ∈ RH ×W ×3, the model predicts two
+coupled structural outputs: a corner confidence map Pc and
+an edge adjacency representation Ae. Candidate vertices are
+selected from Pc, while valid corner-to-corner connections
+are inferred from Ae. The resulting corner–edge primitives
+are then assembled into a planar graph, which serves as a
+compact front-end representation for downstream polygon-
+oriented building vectorization.
+The overall formulation of CornerDYO is defined as
+follows:
+{F52, F26, F13} =B(I ), (1)
+Ffuse = Ftw(F52, F26, F13), (2)
+Fatt = A(Ffuse), (3)
+Pc = Hc(Fatt), Ae = He(Fatt), (4)
+where B(·) denotes the CSPDarknet-Light backbone, Ftw(·)
+denotes the two-way feature pyramid fusion module, A(·)
+represents the context and hybrid attention refinement
+module, and Hc(·) and He(·) denote the corner prediction head
+and edge prediction head, respectively.
+The detected corners and edges are represented as a planar
+graph:
+G = (V , E), (5)
+where
+V = {vi | Pc(vi) ≥ τc}, (6)
+and
+E = {(vi, vj) | Ae(i, j) ≥ τe}. (7)
+Here, τc and τe denote the corner confidence threshold and
+edge adjacency threshold, respectively. The graph can be
+further processed by edge pruning, geometric regularization,
+cycle extraction, and polygon closure constraints to obtain
+ordered structural primitives for downstream CAD/GIS-
+compatible vectorization. In this article, the main objective
+is to improve the accuracy and connectivity of corner–edge
+primitives rather than to claim complete polygon-level
+reconstruction superiority.
+152664 VOLUME 14, 2026
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+FIGURE 1. Overall framework of CornerDYO. The model predicts corner confidence and edge adjacency from remote-sensing imagery and
+organizes the predicted primitives into planar graph representations for downstream building vectorization.
+B. CSPDarknet-LIGHT BACKBONE AND SWIN CONTEXT
+REFINEMENT
+The backbone of CornerDYO is based on a compact
+CSPDarknet architecture. The Cross Stage Partial design
+reduces redundant gradient flow while retaining sufficient
+representation capability for fine-grained corner localization.
+To further reduce computational complexity, selected channel
+widths are compressed using 1 × 1 bottleneck convolutions,
+and efficient convolutional blocks are used for feature
+extraction and fusion.
+Architectural roof structures often contain long ridges,
+repetitive roof patterns, weak-texture regions, shadows,
+and partially occluded boundaries. Local convolutional
+features alone may be insufficient to distinguish true roof
+junctions from texture-induced responses or background
+clutter. To strengthen contextual reasoning without using
+a global transformer backbone, a localized Swin-based
+context refinement block is inserted after the spatial pyra-
+mid feature aggregation stage. Window-based self-attention
+captures local contextual dependencies with manageable
+computational cost, while shifted-window attention supports
+cross-window interaction near building boundaries and roof
+intersections.
+The Swin block is used as a context refinement component
+rather than as a heavy global transformer backbone. There-
+fore, CornerDYO retains convolutional feature extraction as
+the main computational pathway while introducing localized
+contextual reasoning for complex rooftop scenes.
+C. MUL TI-SCALE FEATURE EXTENSION AND TWO-WA Y
+FEATURE PYRAMID FUSION
+Roof corners are sparse, local, and highly sensitive to image
+resolution. Small roof junctions or short structural edges
+may disappear after repeated downsampling in conventional
+convolutional backbones. To improve sensitivity to such
+fine-grained structures, CornerDYO introduces an additional
+high-resolution feature level. Specifically, the backbone
+produces three feature maps:
+F52 ∈ R52×52×128,
+F26 ∈ R26×26×256,
+F13 ∈ R13×13×512. (8)
+The high-resolution feature map F52 provides fine-grained
+spatial cues for small corners and local boundaries, while
+F26 and F13 provide stronger semantic context for larger roof
+structures.
+Instead of using a conventional one-way feature pyramid,
+CornerDYO adopts a two-way feature pyramid fusion
+strategy. The top-down path propagates high-level seman-
+tic information to higher-resolution features, whereas the
+bottom-up path reinforces shallow geometric cues and
+improves structural consistency. This bidirectional interac-
+tion reduces the loss of edge and junction details during
+feature fusion.
+The two-way fusion process can be abstractly written as:
+˜F26 = φ26 (F26, Up(F13)) , (9)
+˜F52 = φ52
+(
+F52, Up( ˜F26)
+)
+, (10)
+ˆF26 = ψ26
+(
+˜F26, Down( ˜F52)
+)
+, (11)
+Ffuse = ψ13
+(
+F13, Down( ˆF26)
+)
+, (12)
+where Up(·) and Down(·) denote upsampling and down-
+sampling operations, respectively. The functions φ(·) and
+ψ(·) represent feature fusion operations implemented with
+convolutional layers and nonlinear activation functions.
+VOLUME 14, 2026 152665
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+Although the final fused representation is constructed at
+a lower spatial resolution, the fine-grained cues from F52
+are propagated through the bidirectional fusion pathway
+before prediction. Specifically, F52 is first integrated into~F52
+through the top-down path and is subsequently propagated
+intoˆF26 and finally into Ffuse through the bottom-up path.
+Therefore, the high-resolution feature level contributes local-
+ization information through multi-scale feature aggregation
+rather than serving as a standalone prediction map.
+This design enables CornerDYO to combine fine-grained
+spatial cues with high-level contextual information, thereby
+supporting the representation of sparse roof vertices and
+edge-level structural relationships.
+D. HYBRID CHANNEL–SPATIAL ATTENTION FOR
+CORNER-AWARE REFINEMENT
+Although multi-scale feature fusion improves representation
+capacity, corner responses may still be weakened by homo-
+geneous roof surfaces, shadows, vegetation, and background
+clutter. To enhance corner-discriminative features before
+edge adjacency inference, CornerDYO introduces a hybrid
+channel–spatial attention mechanism.
+Given the fused feature map Ffuse, the channel attention
+module first computes channel-wise weights by aggregating
+global average-pooled and max-pooled descriptors:
+Mc(Ffuse) = σ
+(
+MLP(AvgPool(Ffuse))
++ MLP(MaxPool(Ffuse))
+)
+, (13)
+where σ (·) denotes the sigmoid activation function. The
+channel-refined feature is then obtained by:
+Fc = Mc(Ffuse) ⊗ Ffuse, (14)
+where ⊗ denotes element-wise multiplication.
+The spatial attention module further emphasizes informa-
+tive spatial locations related to roof junctions and structural
+boundaries:
+Ms(Fc) = σ (Conv ([AvgPool(Fc); MaxPool(Fc)])) , (15)
+where [·; ·] denotes channel-wise concatenation. The final
+attention-refined feature is:
+Fatt = Ms(Fc) ⊗ Fc. (16)
+Unlike generic attention modules that mainly enhance
+region-level saliency, the hybrid attention module in Cor-
+nerDYO is embedded within the corner–edge reasoning
+pathway. This placement allows the model to refine corner-
+aware features before corner confidence estimation and
+edge adjacency prediction, improving the discriminability of
+sparse roof junctions in cluttered remote-sensing scenes.
+E. CORNER CONFIDENCE, EDGE ADJACENCY, AND
+GRAPH-ORIENTED DECODING
+Based on the attention-refined feature map Fatt, CornerDYO
+uses two prediction heads. The corner branch predicts a
+confidence map Pc, which indicates the probability of each
+location being a valid roof vertex. The edge branch predicts
+an adjacency representation Ae, which estimates whether two
+candidate corners should be structurally connected.
+Candidate corners are first selected by confidence thresh-
+olding and local non-maximum suppression:
+V = {vi | Pc(vi) ≥ τc, vi ∈ NMS(Pc)}. (17)
+After confidence thresholding and NMS, at most 150 cor-
+ner candidates are retained according to their confidence
+scores, consistent with the HEA T outdoor benchmark
+setting. Following the HEA T edge-candidate formulation,
+all unordered pairs among the retained corners are initially
+considered as candidate edges. For N retained corners, this
+yields at most N (N − 1)/2 initial pairs (11,175 pairs when
+N = 150). A candidate-filtering stage scores these pairs and
+retains at most 3N candidates for the subsequent relational
+edge decoding, thereby reducing the number of candidates
+passed to the more expensive decoding stage. During
+training, edge candidates are supervised by their ground-truth
+adjacency labels using the masked edge-learning strategy
+adopted in HEA T.
+For each retained candidate corner pair (v i, vj), the edge
+branch estimates the probability of structural connectivity:
+Ae(i, j) = Pr
+(
+(vi, vj) ∈ E | Fatt
+)
+. (18)
+The final edge set is obtained by thresholding the adjacency
+scores:
+E = {(vi, vj) | Ae(i, j) ≥ τe}. (19)
+The resulting planar graph G = (V , E) provides a compact
+representation of the roof structure. Compared with raster
+mask outputs, this graph-based representation explicitly
+preserves vertex locations and corner-to-corner connectivity,
+making it more suitable for downstream roof vectorization
+and CAD/GIS editing. In practice, redundant or invalid edges
+can be removed by graph pruning, and closed cycles can
+be extracted to form ordered structural primitives. Since the
+current evaluation focuses on corner and edge quality, graph-
+based polygon formation is treated as a downstream extension
+rather than the main evaluated target of this article.
+F. LOSS FUNCTION
+CornerDYO is trained with a multi-objective loss that
+supervises corner existence and edge connectivity. Binary
+cross-entropy is used for corner confidence prediction:
+Lcorner = −1N N∑i=1[yi log(ˆyi) + (1 − yi) log(1 − ˆyi)] , (20)
+where yi and ˆyi denote the ground-truth label and predicted
+confidence of the i-th corner candidate, respectively.
+Binary cross-entropy is also used for edge adjacency
+prediction:
+Ledge = −1M M∑j=1[ej log(ˆej) + (1 − ej) log(1 − ˆej)] , (21)
+where ej and ˆej denote the ground-truth label and predicted
+probability of the j-th edge candidate, respectively.
+152666 VOLUME 14, 2026
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+The final training objective is:
+L = λcLcorner + λeLedge. (22)
+In the implementation, the edge-related binary cross-
+entropy weight is set to 1.0, while the corner loss weight
+is set to 0.05. This asymmetric weighting balances corner-
+confidence learning and edge-adjacency supervision during
+joint optimization.
+IV. EXPERIMENTS
+A. DATASET AND EVALUATION PROTOCOL
+Experiments were conducted on the Outdoor Architecture
+Reconstruction benchmark used by Conv-MPN, HEA T,
+and CornerFormer [6], [7], [8]. The dataset contains
+2,001 satellite RGB building patches collected from Paris,
+Las V egas, and Atlanta. Following the standard HEA T split,
+1,601 images were used for training, 50 images for validation,
+and 350 images for testing.
+This benchmark is challenging because the satellite images
+include off-nadir views, foreshortening, shadows, vegetation
+occlusion, repetitive roof patterns, weak roof texture, and
+non-Manhattan building layouts. These conditions make
+the dataset suitable for evaluating whether a model can
+recover both local structural primitives and graph-oriented
+roof topology.
+Two comparison protocols are reported. First, a controlled
+comparison with HEA T was conducted under the same
+data split, optimizer setting, input resolution, and fixed
+500-epoch training schedule. This comparison is used as
+the primary evidence for evaluating the effectiveness and
+training efficiency of CornerDYO. Second, a literature-
+level comparison is included using publicly reported results
+of IP , Conv-MPN, Exp-Cls, HAWP , LETR, HEA T, and
+CornerFormer on the same benchmark. These published
+results broaden the experimental context, but they should be
+interpreted as reference baselines because training schedules,
+hardware platforms, and implementation details may differ
+across papers.
+The main evaluation metrics are precision, recall, and
+F1-score for corner and edge primitives. Following the bench-
+mark evaluation protocol, predicted corners are matched
+to ground-truth corners under the standard distance toler-
+ance, with duplicate matches counted as false positives.
+Edge correctness is evaluated according to the predicted
+structural connectivity between matched corner pairs. For
+consistency with the HEA T evaluation protocol, true-
+positive, false-positive, and ground-truth primitive counts
+are accumulated over the entire test set to compute dataset-
+level precision and recall. The F1-score is subsequently
+calculated as the harmonic mean of precision and recall,
+i.e., F1 = 2PR/(P + R). The same matching criteria,
+evaluation procedure, and threshold settings are applied to
+HEA T and CornerDYO in the controlled comparison.
+Since the current implementation focuses on corner–edge
+primitive extraction, region-level and polygon-level metrics
+are treated as downstream evaluation targets rather than as
+the primary objective of this article.
+B. IMPLEMENTATION DETAILS
+CornerDYO was implemented in PyTorch and trained using
+the Adam optimizer. The initial learning rate was set to
+2 × 10−4, and the weight decay was set to 1 × 10−5.
+Unless otherwise specified, all controlled experiments used
+a fixed 500-epoch training schedule, following the HEA T
+training protocol. Experiments were conducted at two input
+resolutions, 256 × 256 and 512 × 512.
+The corner loss weight was set to 0.05, while the edge-
+related binary cross-entropy loss weight was set to 1.0.
+These weights were selected according to validation-set
+performance to balance sparse corner supervision and edge-
+adjacency learning. The same loss weights were used for all
+CornerDYO experiments.
+All controlled experiments were conducted on a worksta-
+tion equipped with an Intel Xeon-class CPU at 3.4 GHz,
+24 GB RAM, and an NVIDIA RTX A5000 GPU with 24 GB
+memory. The software environment consisted of Win-
+dows 10 Professional 64-bit, Python 3.9, PyTorch 2.2.1, and
+CUDA 12.3. Both HEA T and CornerDYO were trained under
+the same hardware and software environment, optimizer
+setting, input resolution, and 500-epoch training schedule.
+No early stopping was used; every controlled run completed
+the full 500-epoch schedule.
+The reported training time refers to the total wall-clock
+time required to train each model for 500 epochs under the
+controlled setting. Accordingly, the efficiency claim in this
+study is restricted to training wall-clock time under the same
+experimental environment and should not be interpreted as
+a complete comparison of model size, FLOPs, peak GPU
+memory consumption, or per-image inference latency.
+C. COMPARISON WITH HEAT UNDER CONTROLLED
+SETTINGS
+Table 1 reports the controlled corner detection comparison
+between HEA T and CornerDYO. At 256 × 256 reso-
+lution, CornerDYO improves the corner F1-score from
+87.1% to 90.3%. At 512 × 512 resolution, the improvement
+becomes more pronounced, increasing from 88.7% to 96.7%.
+These results indicate that the proposed multi-scale feature
+enhancement and bidirectional feature fusion contribute
+to improved sensitivity to fine-grained roof-junction cues,
+particularly when richer spatial details are available.
+Table 2 reports the controlled edge detection comparison.
+At 512 × 512 resolution, CornerDYO improves the edge
+F1-score from 79.7% to 83.8%. The recall gain is particularly
+important because missed edges may interrupt polygon cycles
+and produce incomplete roof structures. These results show
+that CornerDYO improves not only vertex-level localization
+but also edge-level structural connectivity.
+D. COMPARISON WITH PUBLISHED STRUCTURED
+RECONSTRUCTION METHODS
+To place CornerDYO in the broader structured reconstruction
+literature, Table 3 reports a literature-level comparison
+with representative methods. Conv-MPN formulates building
+VOLUME 14, 2026 152667
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+TABLE 1. Controlled comparison of corner detection with HEAT.
+TABLE 2. Controlled comparison of edge detection with HEAT.
+TABLE 3. Comparison with representative structured reconstruction
+methods on the outdoor architecture reconstruction benchmark.
+reconstruction as message passing over edge candidates,
+HEA T performs holistic edge attention using transformer
+decoders, and CornerFormer enhances corner representa-
+tion by transferring fine-grained corner features to edge
+prediction [6], [7], [8]. These methods are appropriate
+reference baselines because they target planar graph or
+corner–edge reconstruction rather than ordinary building
+mask segmentation.
+The published results are used as reference baselines rather
+than fully controlled re-training comparisons. Therefore,
+the main quantitative claim of this article is based on
+the controlled comparison with HEA T, while the litera-
+ture comparison is provided for contextual analysis. The
+comparison shows that CornerDYO achieves the highest
+reported corner F1-score among the listed methods and
+improves edge F1-score over HEA T and CornerFormer at
+512 × 512 resolution. Because region-level and polygon-
+level metrics are not computed for CornerDYO in the
+current implementation, complete polygon-level superiority
+is not claimed. Accordingly, the controlled results support
+improved corner–edge primitive accuracy and lower training
+wall-clock time relative to HEA T under the same experimen-
+tal setting.
+It should be noted that the literature-level comparison is
+intended to provide contextual analysis rather than a strict
+reproduction-based ranking, since different methods may use
+different preprocessing strategies, training schedules, and
+implementation details.
+E. PROGRESSIVE COMPONENT-INTEGRATION ANAL YSIS
+Table 4 presents a progressive component-integration anal-
+ysis of CornerDYO. The baseline uses a CSPDarknet
+backbone with a conventional one-way feature pyramid
+and independent corner prediction. Adding the 52 × 52
+high-resolution feature level increases the corner F1-score
+from 84.3% to 85.9%, indicating improved sensitivity to
+fine-grained roof-junction cues. Incorporating the two-way
+feature pyramid further increases the F1-score to 87.9%,
+suggesting that bidirectional feature interaction benefits
+the integration of shallow geometric information and
+high-level semantic context. With hybrid attention added,
+the F1-score reaches 89.2%, showing a further incre-
+mental improvement within the progressively enhanced
+configuration.
+Among the separately introduced progressive steps before
+the final joint configuration, the two-way feature pyramid
+yields the largest incremental F1 gain (+2.0 percent-
+age points), followed by the high-resolution feature level
+(+1.6 points) and hybrid attention (+1.3 points). These
+increments describe the observed progression of the inte-
+grated configurations and should not be interpreted as strictly
+isolated causal effects.
+The full CornerDYO configuration jointly introduces Swin
+context refinement and compact backbone optimization,
+increasing the corner F1-score to 96.7%. Because these two
+components are introduced simultaneously in the final con-
+figuration, their individual numerical contributions cannot be
+isolated from the current experiments. Accordingly, Table 4
+should be interpreted as a progressive component-integration
+analysis rather than a strictly orthogonal ablation study. The
+results therefore support the effectiveness of the integrated
+design while avoiding attribution of the final performance
+gain to either Swin context refinement or compact backbone
+optimization individually.
+F. QUALITATIVE COMPARISON
+Figures 2 and 3 provide qualitative comparisons at
+512 × 512 resolution. In corner detection, HEA T tends
+to generate redundant responses around roof textures,
+shadows, or background structures, whereas CornerDYO
+produces cleaner and more complete vertex sets. In edge
+152668 VOLUME 14, 2026
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+TABLE 4. Progressive component integration analysis of CornerDYO.
+FIGURE 2. Qualitative comparison of corner detection on representative 512 × 512 outdoor building images. From left to
+right: input images, HEAT predictions, CornerDYO predictions, and ground-truth annotations. Red points indicate corner
+locations.
+detection, CornerDYO preserves more continuous structural
+connections and reduces fragmented or redundant edges.
+These qualitative observations are consistent with the
+quantitative improvements in Tables 1 and 2.
+The qualitative results also help explain why the proposed
+model is suitable for downstream planar graph construction.
+False corners may generate redundant candidate edges, while
+missed corners remove all incident edges from the graph.
+Cleaner corner prediction therefore reduces the ambiguity
+of edge adjacency inference, and more continuous edge
+predictions increase the likelihood of forming closed roof
+polygons.
+VOLUME 14, 2026 152669
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+FIGURE 3. Qualitative comparison of edge detection on representative 512 × 512 outdoor building images. From left to right:
+input images, HEAT predictions, CornerDYO predictions, and ground-truth annotations. Red points denote detected corners,
+and cyan lines denote predicted structural edges.
+G. FAILURE CASES AND LIMITATIONS
+Despite the improved corner and edge F1-scores, several
+failure cases remain. Figure 4 presents representative failure
+examples under challenging remote-sensing conditions.
+Severe occlusion caused by trees, shadows, or adjacent
+objects may hide roof junctions and lead to missed corner
+predictions.
+A further limitation is that the current experimental
+evidence is strongest at the corner and edge levels.
+Since structured building vectorization ultimately depends
+on valid roof polygons, higher primitive-level scores do
+not necessarily guarantee valid polygon closure, graph
+connectivity, or region-level consistency. Accordingly, the
+present study does not claim complete polygon-level
+reconstruction superiority. A comprehensive evaluation
+of polygon-level geometric accuracy, topology validity,
+and reconstruction completeness remains an important
+direction for future work. Although the benchmark
+includes imagery from Paris, Las V egas, and Atlanta,
+the present evaluation follows the standard aggregated
+test split and does not establish cross-dataset geo-
+graphic generalization. V alidation on additional exter-
+nal datasets remains an important direction for future
+work.
+152670 VOLUME 14, 2026
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+FIGURE 4. Typical failure cases of CornerDYO. The red arrows indicate
+missing or ambiguous roof-corner regions caused by occlusion, weak
+texture, shadow interference, or dense roof structures.
+V. CONCLUSION
+This article presented CornerDYO, an efficient corner–edge
+reasoning framework for structured building vectorization
+from remote-sensing images. The proposed framework
+integrates high-resolution feature enhancement, bidirec-
+tional multi-scale fusion, context refinement, and hybrid
+channel–spatial attention to improve building-corner local-
+ization and edge-connectivity prediction.
+Under the controlled comparison with HEA T, CornerDYO
+achieves improved corner and edge detection performance
+while reducing training wall-clock time under the same
+experimental setting. The results demonstrate the effective-
+ness of combining fine-grained geometric feature enhance-
+ment with explicit corner–edge reasoning for structural
+primitive extraction. The literature-level comparisons further
+provide contextual evidence of the competitiveness of the
+proposed framework on the Outdoor Architecture Recon-
+struction benchmark.
+Although CornerDYO improves corner localization and
+edge connectivity, its performance can still be affected by
+severe occlusions, weak visual textures, and ambiguous roof
+structures. The present study focuses primarily on corner-
+and edge-level structural primitives and does not claim
+complete polygon-level reconstruction superiority. Future
+work will investigate more robust topology-aware learning
+strategies and extend the framework toward larger-scale
+building vectorization and topology-aware reconstruction.
+DATA AVAILABILITY
+The dataset used in this study is publicly available through
+the Outdoor Architecture Reconstruction benchmark.
+Additional experimental details are available from the
+corresponding author upon reasonable request.
+REFERENCES
+[1] OGC City Geography Markup Language (CityGML) Part 1: Conceptual
+Model Standard, Standard Std. 20-010, 2021.
+[2] F. Biljecki, H. Ledoux, and J. Stoter, ‘‘An improved LOD specification for
+3D building models,’’ Comput., Environ. Urban Syst., vol. 59, pp. 25–37,
+Sep. 2016.
+[3] Y . Wang, S. Zorzi, and K. Bittner, ‘‘Machine-learned 3D building
+vectorization from satellite imagery,’’ in Proc. IEEE/CVF Conf. Comput.
+Vis. Pattern Recognit. Workshops (CVPRW), Jun. 2021, pp. 1072–1081.
+[4] N. Girard, D. Smirnov, J. Solomon, and Y . Tarabalka, ‘‘Polygonal building
+extraction by frame field learning,’’ inProc. IEEE/CVF Conf. Comput. Vis.
+Pattern Recognit. (CVPR), Jun. 2021, pp. 5891–5900.
+[5] S. Wei, T. Zhang, S. Ji, M. Luo, and J. Gong, ‘‘BuildMapper:
+A fully learnable framework for vectorized building contour extrac-
+tion,’’ ISPRS J. Photogramm. Remote Sens., vol. 197, pp. 87–104,
+Mar. 2023.
+[6] F. Zhang, N. Nauata, and Y . Furukawa, ‘‘Conv-MPN: Convolutional
+message passing neural network for structured outdoor architecture
+reconstruction,’’ in Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit.
+(CVPR), Jun. 2020, pp. 2795–2804.
+[7] J. Chen, Y . Qian, and Y . Furukawa, ‘‘HEA T: Holistic edge
+attention transformer for structured reconstruction,’’ in Proc.
+IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR), Jun. 2022,
+pp. 3866–3875.
+[8] H. Tian, Y . Li, L. Huang, X. Ling, Y . Y ang, and J. Hu, ‘‘CornerFormer:
+Boosting corner representation for fine-grained structured reconstruction,’’
+2023, arXiv:2304.07072.
+[9] J. Long, E. Shelhamer, and T. Darrell, ‘‘Fully convolutional networks
+for semantic segmentation,’’ in Proc. IEEE Conf. Comput. Vis. Pattern
+Recognit. (CVPR), Jun. 2015, pp. 3431–3440.
+[10] O. Ronneberger, P . Fischer, and T. Brox, ‘‘U-Net: Convolutional networks
+for biomedical image segmentation,’’ in International Conference on
+Medical Image Computing and Computer-Assisted Intervention. Cham,
+Switzerland: Springer, pp. 234–241, 2015.
+[11] K. He, G. Gkioxari, P . Dollár, and R. Girshick, ‘‘Mask R-CNN,’’ in Proc.
+IEEE Int. Conf. Comput. Vis. (ICCV), Oct. 2017, pp. 2980–2988.
+[12] L.-C. Chen, Y . Zhu, G. Papandreou, F. Schroff, and H. Adam,
+‘‘Encoder–decoder with Atrous separable convolution for semantic image
+segmentation,’’ in Proc. Eur . Conf. Comput. Vis., 2018, pp. 833–851.
+[13] M. V olpi and D. Tuia, ‘‘Dense semantic labeling of subdecimeter resolution
+images with convolutional neural networks,’’ IEEE Trans. Geosci. Remote
+Sens., vol. 55, no. 2, pp. 881–893, Feb. 2017.
+[14] S. Zorzi, S. Bazrafkan, S. Habenschuss, and F. Fraundorfer, ‘‘PolyWorld:
+Polygonal building extraction with graph neural networks in satellite
+images,’’ in Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit.
+(CVPR), Jun. 2022, pp. 1848–1857.
+[15] Y . Hu, Z. Wang, Z. Huang, and Y . Liu, ‘‘PolyBuilding: Polygon transformer
+for building extraction,’’ ISPRS J. Photogramm. Remote Sens., vol. 199,
+pp. 15–27, May 2023.
+[16] K. Zhao, M. Kamran, and G. Sohn, ‘‘Boundary regularized building
+footprint extraction from satellite images using deep neural networks,’’
+ISPRS Ann. Photogramm., Remote Sens. Spatial Inf. Sci., vol. V -2,
+pp. 617–624, May 2020.
+[17] Y . Zhou, H. Qi, and Y . Ma, ‘‘End-to-end wireframe parsing,’’ in Proc.
+IEEE/CVF Int. Conf. Comput. Vis. (ICCV), Oct. 2019, pp. 962–971.
+[18] N. Xue, S. Bai, F. Wang, G.-S. Xia, T. Wu, L. Zhang, and P . H. S. Torr,
+‘‘Learning attraction field representation for robust line segment detec-
+tion,’’ in Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR),
+Jun. 2019, pp. 1595–1603.
+[19] Y . Xu, W. Xu, D. Cheung, and Z. Tu, ‘‘Line segment detection using
+transformers without edges,’’ in Proc. IEEE/CVF Conf. Comput. Vis.
+Pattern Recognit. (CVPR), Jun. 2021, pp. 4255–4264.
+[20] G. Gu, B. Ko, S. Go, S.-H. Lee, J. Lee, and M. Shin, ‘‘Towards light-weight
+and real-time line segment detection,’’ in Proc. AAAI Conf. Artif. Intell.,
+2022, vol. 36, no. 1, pp. 726–734.
+[21] R. Pautrat, D. Barath, V . Larsson, M. R. Oswald, and M. Pollefeys,
+‘‘DeepLSD: Line segment detection and refinement with deep image
+gradients,’’ in Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit.
+(CVPR), Jun. 2023, pp. 17327–17336.
+VOLUME 14, 2026 152671
+W. Feng et al.: CornerDYO: An Efficient Corner–Edge Reasoning Framework
+[22] F. Zhang, X. Xu, N. Nauata, and Y . Furukawa, ‘‘Structured out-
+door architecture reconstruction by exploration and classification,’’
+in Proc. IEEE/CVF Int. Conf. Comput. Vis. (ICCV) , Oct. 2021,
+pp. 12407–12415.
+[23] T.-Y . Lin, P . Dollár, R. Girshick, K. He, B. Hariharan, and
+S. Belongie, ‘‘Feature pyramid networks for object detection,’’ in
+Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR), Jul. 2017,
+pp. 936–944.
+[24] S. Liu, L. Qi, H. Qin, J. Shi, and J. Jia, ‘‘Path aggregation network for
+instance segmentation,’’ in Proc. IEEE/CVF Conf. Comput. Vis. Pattern
+Recognit., Jun. 2018, pp. 8759–8768.
+[25] C.-Y . Wang, H.-Y . M. Liao, Y .-H. Wu, P .-Y . Chen, J.-W. Hsieh, and
+I.-H. Y eh, ‘‘CSPNet: A new backbone that can enhance learning capability
+of CNN,’’ in Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit.
+Workshops (CVPRW), Jun. 2020, pp. 1571–1580.
+[26] Z. Liu, Y . Lin, Y . Cao, H. Hu, Y . Wei, Z. Zhang, S. Lin, and
+B. Guo, ‘‘Swin transformer: Hierarchical vision transformer using shifted
+windows,’’ inProc. IEEE/CVF Int. Conf. Comput. Vis. (ICCV), Oct. 2021,
+pp. 9992–10002.
+[27] J. Hu, L. Shen, and G. Sun, ‘‘Squeeze-and-excitation networks,’’ in
+Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit., Jun. 2018,
+pp. 7132–7141.
+[28] S. Woo, J. Park, J.-Y . Lee, and I. S. Kweon, ‘‘CBAM: Convolutional block
+attention module,’’ in Proc. Eur . Conf. Comput. Vis., 2018, pp. 3–19.
+[29] N. Nauata and Y . Furukawa, ‘‘V ectorizing world buildings: Planar
+graph reconstruction by primitive detection and relationship inference,’’
+in Proc. Eur . Conf. Comput. Vis. Cham, Switzerland: Springer, 2020,
+pp. 711–726.
+WENWEN FENG received the B.S. degree in
+networks engineering from Zaozhuang University,
+China, in 2014, the M.S. degree in computer
+application technology from Guangxi University,
+China, in 2017, and the Ph.D. degree in com-
+puter graphics from Universiti Putra Malaysia,
+Malaysia, in 2026. She was a Software Develop-
+ment Engineer with China-ASEAN Information
+Harbor Company Ltd., from 2017 to 2018,
+and subsequently joined Guangxi Polytechnic of
+Construction. Her research interests include computer vision, remote-
+sensing image analysis, structured reconstruction, building vectorization,
+and 3D city modeling.
+XIAO CEN received the B.S. degree in computer
+science and technology and the M.S. degree in
+computer application technology from Guangxi
+University, Nanning, China, in 2014 and 2017,
+respectively. He is currently an Associate Pro-
+fessor and the Program Leader of artificial intel-
+ligence engineering technology with the School
+of Information Engineering, Guangxi V ocational
+University of Agriculture. He is also an Infor-
+mation System Project Manager and a Technical
+Expert of Guangxi Science and Technology Expert Database. His recent
+work focuses on deep learning-based image analysis, intelligent perception,
+and AI-enabled agricultural systems. He has published more than ten
+research articles and participated in several research projects related to
+artificial intelligence and digital agriculture. His research interests include
+artificial intelligence, computer vision, intelligent sensing, big data analytics,
+and digital agriculture applications.
+SITI KHADIJAH ALI received the B.Sc. degree
+in applied mathematical sciences from Universiti
+Sains Malaysia, Malaysia, in 2005, the M.Sc.
+degree in computer graphics from Universiti Putra
+Malaysia, Malaysia, in 2012, and the Ph.D. degree
+in automatic control and systems engineering
+from The University of Sheffield, U.K., in 2018.
+From 2008 to 2017, she was a Tutor with Universiti
+Putra Malaysia. Since 2018, she has been a Senior
+Lecturer with the Department of Multimedia,
+Faculty of Computer Science and Information Technology, Universiti
+Putra Malaysia. She has served as principal investigator for institutional
+and national-level research grants. Her research interests include physics-
+based animation and simulation, control-systems applications, and computer
+graphics. She received the Best Paper Award at the International Conference
+on Applied Engineering, in 2018.
+RAHMITA WIRZA O. K. RAHMAT received
+the B.Sc. and M.Sc. degrees in mathematics
+from Universiti Sains Malaysia, Malaysia, in 1989
+and 1994, respectively, and the Ph.D. degree in
+computer-assisted engineering from the University
+of Leeds, U.K. She is currently a Professor with
+the Faculty of Computer Science and Information
+Technology, Universiti Putra Malaysia. She has led
+numerous research projects, published extensively
+in journals and conference proceedings, super-
+vised postgraduate researchers, and contributed to research collaboration and
+academic program development in computer graphics and computer-assisted
+surgery. Her research interests include computer graphics and applications,
+computer-assisted surgery, computational geometry, and visualization.
+152672 VOLUME 14, 2026

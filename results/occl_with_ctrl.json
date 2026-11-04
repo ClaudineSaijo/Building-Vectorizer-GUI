@@ -1,0 +1,30 @@
+{
+  "whu_mt512": {
+    "tiles": 49,
+    "mIoU": 0.8415,
+    "polygon_iou": 0.8189,
+    "mean_vertices": 7.97,
+    "polygons": 50.7
+  },
+  "whu_ctrl384": {
+    "tiles": 49,
+    "mIoU": 0.8388,
+    "polygon_iou": 0.8173,
+    "mean_vertices": 7.98,
+    "polygons": 52.0
+  },
+  "whu_bieb": {
+    "tiles": 49,
+    "mIoU": 0.8385,
+    "polygon_iou": 0.8167,
+    "mean_vertices": 7.98,
+    "polygons": 51.6
+  },
+  "whu_dir": {
+    "tiles": 49,
+    "mIoU": 0.8378,
+    "polygon_iou": 0.8121,
+    "mean_vertices": 8.03,
+    "polygons": 52.8
+  }
+}

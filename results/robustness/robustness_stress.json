@@ -1,0 +1,62 @@
+{
+  "num_patches": 120,
+  "checkpoint": "D:\\All4DS\\BISHE\\runs\\full\\best.pt",
+  "results": {
+    "clean": {
+      "iou": 0.5771,
+      "f1": 0.7319,
+      "biou": 0.3669,
+      "small_recall": 0.6883,
+      "merge_rate": 0.215,
+      "relative_iou": 1.0
+    },
+    "low_light": {
+      "iou": 0.3017,
+      "f1": 0.4636,
+      "biou": 0.2049,
+      "small_recall": 0.4079,
+      "merge_rate": 0.2161,
+      "relative_iou": 0.5228
+    },
+    "shadow": {
+      "iou": 0.5183,
+      "f1": 0.6828,
+      "biou": 0.3198,
+      "small_recall": 0.6574,
+      "merge_rate": 0.2914,
+      "relative_iou": 0.8982
+    },
+    "haze": {
+      "iou": 0.3734,
+      "f1": 0.5437,
+      "biou": 0.26,
+      "small_recall": 0.5123,
+      "merge_rate": 0.1794,
+      "relative_iou": 0.647
+    },
+    "noise": {
+      "iou": 0.2882,
+      "f1": 0.4475,
+      "biou": 0.239,
+      "small_recall": 0.3893,
+      "merge_rate": 0.1004,
+      "relative_iou": 0.4994
+    },
+    "motion_blur": {
+      "iou": 0.3548,
+      "f1": 0.5238,
+      "biou": 0.2111,
+      "small_recall": 0.3598,
+      "merge_rate": 0.1789,
+      "relative_iou": 0.6149
+    },
+    "jpeg": {
+      "iou": 0.4656,
+      "f1": 0.6354,
+      "biou": 0.2538,
+      "small_recall": 0.5721,
+      "merge_rate": 0.4241,
+      "relative_iou": 0.8068
+    }
+  }
+}

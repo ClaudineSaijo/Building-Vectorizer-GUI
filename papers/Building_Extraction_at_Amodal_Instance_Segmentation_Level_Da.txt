@@ -1,0 +1,1555 @@
+IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024 5602818
+Building Extraction at Amodal-Instance-
+Segmentation Level: Datasets
+and Framework
+Yiming Yan
+ , Member , IEEE, Ying Qi
+ , Congan Xu
+ , Nan Su
+ , Member , IEEE, and Liuqing Yang
+Abstract— This article presents two amodal instance seg-
+mentation (AIS) datasets in the field of remote sensing: the
+multiview building dataset for the Zurich region (MVB-Zurich)
+and the multisize building dataset for the Dortmund region
+(MSB-Dortmund). Additionally, a new AIS network framework,
+named FE-RSBL-AmodalNet, is proposed, which is based on
+feature enhancement and remote sensing boundary loss. Instance
+segmentation has emerged as a popular approach for building
+extraction in recent years. However, a limitation of using such
+algorithms for building extraction is the inability to predict the
+invisible areas. Consequently, the extracted building contours
+are incomplete, which hampers certain applications relying on
+accurate building extraction. To address this limitation, AIS
+has emerged as a promising research field. Unfortunately, there
+is currently a lack of datasets available for developing AIS
+algorithms in the field of remote sensing, which poses a barrier
+to the widespread application of AIS in this domain. This article
+introduces two AIS datasets specifically designed for remote-
+sensing buildings. The datasets consist of images captured from
+tilted views using a tilt photography system, resulting in a
+significant presence of occluded areas within the images. More-
+over, the MVB-Zurich dataset comprises aerial images captured
+from five different viewpoints, while the MSB-Dortmund dataset
+encompasses diverse buildings, including garages and residences,
+with varying sizes. The multiview and multisize attributes of these
+datasets offer enhanced research opportunities. Furthermore,
+a new AIS framework, specifically designed for remote sensing
+buildings, was proposed with the aim of accurately predicting
+complete building contours.
+Index Terms— Amodal instance segmentation (AIS), building
+extraction, dataset, multi size, multi view, occlusion.
+I. I NTRODUCTION
+B
+UILDINGS
+constitute a significant portion of the arti-
+ficial ground objects in urban areas. The automatic or
+semi-automatic extraction of buildings [1], [2], [3] plays a
+Manuscript received 22 July 2023; revised 14 November 2023; accepted
+16 December 2023. Date of publication 22 December 2023; date of current
+version 4 January 2024. This work was supported in part by the National
+Natural Science Foundation of China under Grant 62071136, Grant 62271159,
+and Grant 62271499; in part by the Heilongjiang Outstanding Youth Foun-
+dation under Grant YQ2022F002; and in part by the Fundamental Research
+Funds for the Central Universities under Grant 3072022QBZ0805 and Grant
+3072022CF0808. (Corresponding authors: Congan Xu; Nan Su.)
+Yiming Yan, Ying Qi, Nan Su, and Liuqing Yang are with the Key
+Laboratory of Advanced Marine Communication and Information Technology,
+Ministry of Industry and Information Technology, and College of Information
+and Communication Engineering, Harbin Engineering University, Harbin
+150009, China (e-mail: sunan08@hrbeu.edu.cn).
+Congan Xu is with the Advanced Technology Research Institute, Beijing
+Institute of Technology, Jinan 250307, China, and also with Naval Aviation
+University, Yantai 264000, China (e-mail: xcatougao@163.com).
+Digital Object Identifier 10.1109/TGRS.2023.3345867
+crucial role in land planning, urban construction [4], [5], [6],
+and serves as the foundation for various remote sensing appli-
+cations, including 3-D modeling, multiview target matching,
+and positioning.
+The field of building extraction has witnessed continuous
+advancements due to the rapid development of deep learning.
+Object detection, semantic segmentation, and instance segmen-
+tation methods [7] are increasingly employed for extracting
+buildings from images. Instance segmentation enables the
+distinction of individual buildings and achieves pixel-level
+segmentation. However, conventional instance segmentation
+methods solely concentrate on the visible regions of the
+target, leading to incomplete predicted building contours when
+the target is partially occluded. In 2016, Li and Malik [8]
+introduced the concept of amodal instance segmentation (AIS),
+which extends the segmentation to the invisible regions of
+the target, thereby predicting complete object contours. The
+term amodal is in contrast to modal, where modal percep-
+tual representation refers to sensory qualities (e.g., color or
+texture) that are visibly present. Modal percepts represent the
+visible regions of a scene, while amodal percepts represent the
+invisible regions [9]. The task of AIS holds great significance
+for remote sensing image processing applications. AIS-based
+building extraction enables the accurate prediction of complete
+contours for occluded buildings, addressing a limitation of
+existing algorithms.
+However, due to the novelty and complexity of the task,
+there is currently no large-scale AIS dataset available in the
+field of remote sensing. In this article, two AIS datasets,
+MVB-Zurich and MSB-Dortmund, were proposed, which were
+composed of airborne tilt images. The airborne images are
+captured by the inclined photography system, resulting in a
+significant number of occlusion areas. To the best of our
+knowledge, these are the first two AIS datasets in the field
+of remote sensing.
+Furthermore, the robustness of the view and size is crucial
+for the AIS algorithm. In numerous practical applications, the
+size and position of the target object may constantly vary, and
+such variations can affect the algorithm’s performance. If the
+instance segmentation algorithm is only capable of extracting
+targets of a single size, it may fail to fully segment the
+target when its size changes and it cannot maintain pixel-level
+accuracy simultaneously. When the view is transformed, the
+difficulty of extracting the monomerization of buildings will
+be different. Therefore, multiview images of buildings within
+1558-0644 © 2023 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See https://www.ieee.org/publications/rights/index.html for more information.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+5602818 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024
+Fig. 1. Inria dataset [17]: (a) example of an image and (b) ground-truth.
+the same area were selected and annotated, resulting in the
+proposed MVB-Zurich dataset with multiview characteristics.
+Images with different sizes of buildings were selected and
+annotated, and the multisize MSB-Dortmund dataset with
+multisize characteristics was proposed.
+Additionally, although AIS can effectively extract partially
+occluded targets, AIS algorithms based on natural image
+research still face challenges in extracting building targets
+from remote sensing images with complex backgrounds and
+diverse building forms. Consequently, a new AIS algorithm,
+FE-RSBL-AmodalNet, is proposed, which incorporates a fea-
+ture enhancement (FE) module and remote sensing boundary
+loss (RSBL) within its framework. The former achieves the
+FE of the target using a self-attention mechanism, while the
+latter enhances the network’s ability to discriminate between
+the target and the background, as well as between different
+targets, by focusing on the target boundary.
+II. R ELATED WORK
+In this section, the shortcomings of existing datasets and
+algorithms are analyzed to illustrate the significance of the
+proposed datasets and algorithm framework. First, existing
+AIS datasets were introduced and their characteristics were
+analyzed. Second, the development of building extraction
+methods, mainly the deep learning algorithms were introduced.
+Finally, the problems of existing datasets and algorithms were
+analyzed, and our contributions were proposed.
+A. Existing AIS Datasets
+Currently, the majority of existing AIS datasets are based
+on natural images. The first natural image AIS dataset was
+published by Li and Malik [8], which was based on Pascal
+VOC [11]. In addition, the conventional AIS datasets include
+COCOA [13] based on MS-Coco [10], KINS dataset [12],
+and D2S amodal dataset [14] annotated based on D2S [15].
+However, natural images exhibit a scarcity of building targets
+and lack multiview and multisize information. Hence, natural
+images are unsuitable for researching AIS algorithms intended
+for building extraction in remote sensing.
+Unfortunately, in the field of remote sensing, there is cur-
+rently no dataset specifically designed for AIS research. Some
+existing datasets used for building extraction in remote sensing
+were annotated in a semantic way [16]. Fig. 1 illustrates the
+dataset released by the Inria competition [17]. This dataset
+consists of two categories: buildings and non-buildings. With
+Fig. 2. Semcity-Toulouse dataset [18]: (a) example of an image and
+(b) ground-truth.
+the advancements in deep learning, instance segmentation
+enabled more precise extraction of buildings in remote sensing
+images. The Semcity Toulouse dataset [18] is shown in Fig. 2.
+Unlike Inria datasets, this dataset distinguishes individual
+instances with different colors, which means instance-level
+annotations. The building dataset with instance-level annota-
+tions also includes SpaceNet [19], crowdAI Mapping Chal-
+lenge [20], and iSAID dataset [21]. In addition, the 2023 IEEE
+GRSS data fusion competition [22] unveiled a large-scale
+urban building dataset, which encompassed 12 distinct types
+of building roofs and can be utilized for instance segmentation.
+However, it only includes annotations for the building roofs,
+and instances with occlusion are infrequent, making it less
+suitable for AIS research.
+While there are numerous large building datasets available
+in the field of remote sensing, these datasets do have certain
+drawbacks, including the following:
+1) These datasets primarily capture the top surface infor-
+mation of buildings, neglecting occluded targets.
+2) The current datasets lack the essential characteristics of
+multiview and multisize, which are vital for studying
+AIS algorithms related to remote sensing image analysis.
+Therefore, the existing datasets in the field of remote sensing
+cannot be utilized for studying AIS algorithms focused on
+building extraction, and they are insufficient in providing
+multiview and multisize research capabilities.
+B. Building Extraction Method
+Traditional building extraction methods can be categorized
+into two types: individual segmentation-oriented extraction
+methods and feature-based extraction methods [39], [40].
+With the application of deep learning methods in various
+fields, object detection, semantic segmentation, and instance
+segmentation can provide new solutions for building extraction
+in oblique remote sensing images. Different from other meth-
+ods, instance segmentation realizes the semantic classification
+at the pixel level while locating multiple target buildings.
+So far, there have been some frameworks for instance seg-
+mentation, such as bottom-up semantic segmentation-based
+method and top-down object detection-based method [29].
+The bottom-up approach, based on semantic segmentation,
+initially segments pixels at the semantic level. Subsequently,
+techniques such as pixel clustering are employed to further
+segment the image into distinct instances of the same category
+[26], [27], [28]. The top-down approach first detects the target
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+Y AN et al.: BUILDING EXTRACTION AT AIS LEVEL: DATASETS AND FRAMEWORK 5602818
+and conducts pixel-level segmentation within the detected
+boundary to generate masks for each instance. As instance
+segmentation progresses, single-stage algorithms have also
+emerged. These include anchor-based methods, represented
+by YOLACT [30] and SOLO [31], as well as anchor-free
+methods, represented by BlendMask [32] and PolarMask [33].
+Although the conventional instance segmentation method
+achieves pixel-level segmentation, it primarily focuses on
+the visible area of the target. Consequently, it encounters
+challenges when attempting to extract the complete contour
+of partially occluded targets. To address this limitation, the
+concept of AIS emerged. AIS goes beyond traditional instance
+segmentation by specifically targeting the invisible areas to
+achieve complete segmentation of occluded targets. Li and
+Malik [8] generated detection boxes and masks for the visible
+area of the object, and further expanded the mask by iterative
+bounding box expansion to iteratively generate the boundary
+box and mask containing the occluded area of the image. Zhu
+et al. [13] directly predicted amodal masks based on Amodal-
+Mask. Follmann et al. [14] proposed an end-to-end network
+that predicts amodal instance masks, allowing the forward
+propagation process to predict both visible and invisible areas
+of the target. Zhang et al. [34] introduced semantics-aware
+distance map, along with the semantic layering network, which
+are designed for amodal segmentation. Additionally, Ke et al.
+[38] proposed BCNet, a bi-layer convolutional network that
+effectively separates the occludee and occluded objects in
+highly overlapped scenarios.
+The existing AIS algorithms based on natural image
+research proved to be inadequate when applied to building
+datasets with complex backgrounds and diverse target shapes,
+failing to effectively address the challenge of extracting com-
+plete contours for occluded targets.
+Based on the shortcomings of the existing datasets and
+the inadaptability of the current AIS algorithm and remote
+sensing data, two AIS datasets and an AIS framework were
+proposed.
+The datasets address the absence of AIS datasets in the
+current remote sensing field, as well as the lack of multiview
+and multisize AIS datasets. The datasets specifically annotate
+the building occlusion category, facilitating the use of conven-
+tional instance segmentation algorithms to analyze occluded
+characteristics and offering new insights for AIS research. In
+summary, our contributions are as follows:
+1) MVB-Zurich dataset was proposed. The dataset con-
+tained a large number of occlusion areas, accounting
+for 9.04% of the total building area, which can be
+used for the study of AIS algorithms in the field
+of remote sensing. Further, the MVB-Zurich dataset
+includes images captured from the same area from five
+different views, showcasing its multiview characteristics,
+which we analyze in this article.
+2) The MSB-Dortmund dataset obtained from the oblique
+view was proposed. The dataset contained a large num-
+ber of occlusion areas, accounting for 4.7% of the total
+building area. This dataset is suitable for studying AIS
+algorithms in remote sensing and covers a wide range
+of building sizes, from small targets like garages to
+large targets like residential buildings. In this article,
+we analyze its multisize characteristics.
+3) In order to improve the inadaptability of the current
+AIS algorithms and remote sensing datasets, a new
+AIS framework, FE-RSBL-AmodalNet, was proposed.
+According to the characteristics of remote sensing
+images, an FE module based on the self-attention mech-
+anism and RSBL was added to the framework.
+In Section III, the characteristics and annotation rules of
+the two datasets were introduced in detail. In Section IV, the
+proposed framework was introduced. In Section V, experi-
+ments were carried out based on the proposed datasets and
+frameworks. Finally, the article was summarized.
+III. D ATASETS : MVB-Z URICH AND MSB-D ORTMUND
+This section provides a detailed introduction to the char-
+acteristics and annotation rules of the two datasets. It covers
+the dataset’s source, the number of images and instances, and
+the annotation process. Furthermore, it includes an analysis
+of the multiview buildings in MVB-Zurich and the multisize
+buildings in MSB-Dortmund.
+A. Data Collection
+The images in the MVB-Zurich dataset were captured in
+the Zurich region, utilizing data acquired from the benchmark
+project “High Density Aerial Image Matching Benchmark”
+[23]. The data were acquired using the medium format camera
+Leica RCD30 Oblique Penta, which has a pixel size of 6 µm
+and a radiation resolution of 14 bits. The tilt angle of the
+four cameras mounted on corners was 35 ◦, and the GSD of
+the resulting image was 6–13 cm. The nadir image had a
+GSD of 6 cm. The aircraft, equipped with a tilt photography
+system, captures the Zurich area from five different viewpoints
+(referred to as view1, view2, view3, view4, and view5). The
+data images from each viewpoint exhibited varying degrees of
+building occlusions.
+The acquired images primarily featured large single-family
+buildings, with certain areas containing multiple adjacent
+buildings. Fig. 3 depicts a schematic of the annotated area
+in Zurich. Fig. 4 illustrates the shapes of both single buildings
+and adjacent buildings.
+The MSB-Dortmund dataset was derived from oblique air-
+borne data acquired by ISPRS as part of the ISPRS Science
+Program’s Multi-Platform Ultrahigh Resolution Photogramme-
+try benchmarking project [24]. The ground sampling distance
+(GSD) of these images was 10 cm in the nadir view and
+ranged from 8 to 12 cm in the oblique view. Fig. 5 illus-
+trates a schematic of the annotated area in Dortmund. The
+dataset of this project includes single buildings and adjacent
+buildings, as depicted in Fig. 6. Single buildings and adjacent
+buildings exhibit significant color variations in their roofs and
+facades. Notably, the dataset includes buildings with signif-
+icant variations in size, including scenes where buildings of
+different sizes are adjacent or irregular buildings are adjacent.
+Section III-C of this article discusses the size characteristics
+of the dataset.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+5602818 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024
+Fig. 3. Annotated region thumbnail of MVB-Zurich dataset [24].
+Fig. 4. Building example in MVB-Zurich: (a) single building and (b) adjacent
+building.
+Fig. 5. Annotated region thumbnail of MSB-Dortmund dataset [25].
+B. Data Annotation
+The image annotation tool Labelme [25] was used to anno-
+tate the datasets. At present, some mainstream deep learning
+algorithms have requirements on the size of the input image. If
+Fig. 6. Building example in MSB-Dortmund: (a) single building and
+(b) adjacent building.
+the pixel size of the input image is excessively large, it not only
+places high demands on computer hardware but also hinders
+the neural network’s ability to effectively learn building infor-
+mation. This article adopts the approach depicted in Fig. 7.
+Initially, the original remote sensing image is annotated using
+the graphical annotation tool, resulting in a json annotation
+file in Labelme format. Subsequently, it is transformed into a
+semantic map to acquire the semantic labels. Then, the original
+image and its corresponding semantic label are cropped with
+a fixed step size. Every small image clipped from the original
+image is associated with its respective semantic label, and
+subsequently, the semantic label is converted into an instance
+label that corresponds to the small image. If images of different
+sizes and their corresponding annotation information were
+needed, it only needs to take different steps to complete the
+synchronous cropping of the original image and its semantic
+labels, avoiding secondary labeling.
+The annotation software would display different labels in
+distinct colors. Fig. 8 illustrates the schematic of the annotation
+process, where the yellow polygon represents the occlusion
+area, the green polygon represents the overall building area,
+and the red polygon represents the roof of the building. In
+cases where a building was partially occluded, the labeling
+process involved predicting the true boundaries of the building
+first, followed by annotating the complete outlines of the
+building.
+For the MVB-Zurich dataset, a total of 2304 small images
+with a size of 640 × 640 pixels were obtained. In this dataset,
+two categories are annotated, the overall building category
+“building” and the occluded building category “occlusion.”
+For the MSB-Dortmund dataset, a total of 653 small images
+with a size of 500 × 500 pixels were obtained. The dataset
+includes three annotated categories: “building,” “roof,” and
+“occlusion,” which respectively represent the entire building,
+the building roof, and the area of the building that is occluded.
+Dense annotations were provided for these images. Specific
+annotation rules are introduced below. The annotation file
+contained the image’s path, name, size, and vertex informa-
+tion of the annotated polygons. Due to the complexity of
+occlusion, only two types were taken into account. One was
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+Y AN et al.: BUILDING EXTRACTION AT AIS LEVEL: DATASETS AND FRAMEWORK 5602818
+Fig. 7. Annotation and cropping strategy diagram.
+Fig. 8. Schematic of the annotation process: (a) the original image,
+(b) occlusion of the building, (c) the whole area of building, and (d) roof
+of the building.
+Fig. 9. Whole area of the building annotated: (a) buildings with regular shape,
+(b) multiple adjacent buildings, (c) example of one situation that human vision
+cannot tell whether the building in the image is a single building or adjacent
+buildings, and (d) irregular building.
+the occlusion of heterogeneous ground objects, that is, the
+occlusion of buildings by green plants, and the other was the
+occlusion between buildings. These two categories covered
+most of the occlusions in the image data. Subsequently, the
+annotation principles and procedures for the three categories
+are elaborated.
+1) Annotation to the Whole Buildings: Since most buildings
+with regular shapes are distributed independently, the annota-
+tion process was relatively straightforward. The entire building
+could be selected by following its outer contour. In the case
+of a single residential building with a garage, the house and
+garage were annotated separately. From an inclined view, there
+could be occlusion between the garage and the house. During
+the annotation process, if occlusion was present, the occluded
+portion of the building would be predicted based on human
+experience, and then the entire building would be labeled,
+as depicted in Fig. 9(a).
+Fig. 10. Occluded area of the building annotated: (a) buildings occluded
+by green plants, (b) occlusion between adjacent houses, (c) example of one
+situation that human vision cannot tell whether the building in the image is
+a single building, and (d) occlusion between multiple adjacent buildings.
+Since occlusions are expected between multiple adjacent
+buildings, similar to the previous case, for occluded parts, the
+building edges were estimated based on experience, followed
+by labeling the entire building area, as illustrated in Fig. 9(b).
+In some cases where it was challenging to determine if
+buildings were adjacent, the buildings were annotated as a
+single entity, as depicted in Fig. 9(c).
+Irregular buildings posed a greater complexity, and each
+distinguishable occluded part of the building was considered
+a separate component to be labeled. During the annotation
+process, the blocked edges were artificially predicted, as illus-
+trated in Fig. 9(d).
+2) Annotation to the Occluded Areas of Buildings: Due to
+the complexity of occlusion in the dataset, only two typical
+occlusions were considered. One type involved the occlusion
+of buildings by green plants, while the other type was the
+occlusion between buildings themselves. The occlusion caused
+by garages and houses overlapping with each other was also
+categorized as occlusion between buildings.
+Both of these occlusion types were consistently labeled as
+“occlusion” category, as depicted in Fig. 10.
+Due to the noticeable color difference between green plants
+and buildings, this type of occlusion was relatively easy to
+label. The extent of the green plant coverage on buildings
+could be delineated by selecting along the occlusion edge
+using Labelme, as exemplified in Fig. 10(a).
+Occlusion occurred between adjacent buildings or between
+garages and houses and was predicted based on the contour of
+the visible portion of the building, as illustrated in Fig. 10(b).
+For two adjacent buildings, if there was a significant color
+difference, the occlusion was annotated accordingly. If the
+difference was too small to be perceptible to the naked eye, the
+occlusion between the buildings was not taken into account,
+as depicted in Fig. 10(c).
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+5602818 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024
+Fig. 11. Roof of the building annotated: (a) buildings with regular shape,
+(b) multiple adjacent buildings, (c) example of one situation that human vision
+cannot tell whether the building in the image is a single building or adjacent
+buildings, and (d) irregular buildings.
+When multiple garages and houses are adjacent, the occlu-
+sion caused by each garage or dwelling with its adjacent
+buildings should be considered during annotation, as shown
+in Fig. 10(d).
+3) Annotation to the Occluded Areas of Buildings: Due to
+the complexity of occlusion in the dataset, only two typical
+occlusions were considered. One type involved the occlusion
+of buildings by green plants, while the other type was the
+occlusion between buildings themselves. The occlusion caused
+by garages and houses overlapping with each other was also
+categorized as occlusion between buildings.
+Both of these occlusion types were consistently labeled as
+“occlusion” category, as depicted in Fig. 10.
+Due to the noticeable color difference between green plants
+and buildings, this type of occlusion was relatively easy to
+label. The extent of the green plant coverage on buildings
+could be delineated by selecting along the occlusion edge
+using Labelme, as exemplified in Fig. 10(a).
+Occlusion occurred between adjacent buildings or between
+garages and houses and was predicted based on the contour of
+the visible portion of the building, as illustrated in Fig. 10(b).
+For two adjacent buildings, if there was a significant color
+difference, the occlusion was annotated accordingly. If the
+difference was too small to be perceptible to the naked eye, the
+occlusion between the buildings was not taken into account,
+as depicted in Fig. 10(c).
+When multiple garages and houses are adjacent, the occlu-
+sion caused by each garage or dwelling with its adjacent
+buildings should be considered during annotation, as shown
+in Fig. 10(d).
+4) Annotation to the Roofs of Buildings: The roof category
+was labeled as “roof,” which was relatively straightforward
+to annotate. The annotation principles for the roof category
+were consistent with those for the entire building. In an image,
+there were fewer instances of roofs being blocked by adjacent
+buildings, but more cases of roofs being obstructed by green
+plants. During the annotation process, it was necessary to
+predict the edges of the roof that were covered by green plants,
+as depicted in Fig. 11.
+C. Data Structure Analysis of Datasets
+1) MSB-Dortmund Dataset: MSB-Dortmund dataset
+includes buildings of various sizes, ranging from small
+garages to large residential buildings. Objects such as
+garages, which have a pixel size smaller than 90 × 90,
+Fig. 12. Buildings of different sizes: (a) small buildings, (b) medium
+buildings, and (c) large buildings.
+TABLE I
+DISTRIBUTION OF TRAINING SET AND TEST SET
+IN MSB-D ORTMUND DATASET
+TABLE II
+DISTRIBUTION OF BUILDINGS WITH DIFFERENT
+SIZES IN MSB-D ORTMUND DATASET
+are classified as small targets, while small single-family
+residences with a pixel size between 90 × 90 pixels and
+175 × 175 pixels are considered medium-sized buildings.
+Large single-family or large aspect ratio objects are defined as
+large targets with a pixel size greater than 175 × 175 pixels.
+After reclassification, there are 49.3% small targets, 43.6%
+medium targets, and 7.1% large targets in the MSB-Dortmund
+dataset. As shown in Fig. 12, it is a schematic of buildings
+of different sizes, small buildings are shown in the garage in
+Fig. 12(a), medium-sized buildings are shown in Fig. 12(b),
+and large buildings are shown in Fig. 12(c). The difference in
+the size of buildings makes the number of buildings contained
+in a single image different, and the images dominated by
+small buildings naturally contain more buildings.
+After annotation, cropping, and resizing, a total of
+653 images of size 500 × 500 are generated for the MSB-
+Dortmund dataset. Among these, 606 images are used for
+training, and 47 images are used for testing. Table I displays
+the number of images and different feature types in the training
+and testing sets. Table II presents the distribution of building
+categories of different sizes in the training and testing sets
+based on the multisize characteristics of the MSB-Dortmund
+dataset. This dataset comprises 49.3% small targets, 43.6%
+medium targets, and 7.1% large targets.
+2) MVB-Zurich Dataset: The MVB-Zurich multiview
+dataset consists of five views of images, which are divided
+into small images with a 640 × 640 window size, resulting
+in a total of 2304 images. Figs. 13 and 14 illustrate single
+buildings and adjacent buildings from five views.
+Based on the multiview characteristics of the dataset, two
+division methods for the training and testing sets are provided.
+First, to ensure the consistency of building distribution across
+different views, two-thirds of the images from each view are
+designated as the training set, while the remaining images from
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+Y AN et al.: BUILDING EXTRACTION AT AIS LEVEL: DATASETS AND FRAMEWORK 5602818
+TABLE III
+DISTRIBUTION OF TRAINING SET AND TEST SET
+IN MVB-Z URICH DATASET
+Fig. 13. Single buildings from five views.
+Fig. 14. Adjacent buildings from five views.
+each view are allocated to the testing set. The resulting training
+set will consist of 1568 small images, while the test set will
+comprise 736 small images. Table III displays the count of
+different types of ground objects in the training and testing
+sets using this division method.
+IV. FE-RSBL-A MODEL NET
+In this section, FE-RSBL-AmodelNet, as shown in Fig. 15,
+is proposed for the characteristics of oblique remote sensing
+images and the difficulties of building segmentation. This
+framework includes a feature extraction structure. Then the
+obtained feature enters the FPN and FCOS structures [45].
+Finally, the result is obtained by the mask segmentation
+module.
+First, to address the issue of complex background, a FE
+module based on the self-attention mechanism [46] is intro-
+duced. This module allows the network to mitigate the interfer-
+ence from background information and focus on the essential
+features of the target. Furthermore, to address the challenges
+posed by occlusion and the difficulty in distinguishing adjacent
+buildings caused by oblique multiview, the RSBL function
+[42] is employed. This loss function is used to constrain
+the predictions of occluded and non-occluded targets by the
+bi-layer segmentation part, thereby enhancing the network’s
+Fig. 15. FE-RSBL-AmodelNet framework.
+attention to occluded and boundary regions, and ultimately
+enabling the differentiation between occluded buildings and
+adjacent buildings.
+A. FE Module Based on Self-Attention
+The self-attention mechanism has its origins in text feature
+extraction. In deep learning tasks, different feature vectors
+contribute to the task to varying extents. Certain features
+are crucial for target localization and segmentation, whereas
+others, such as background feature vectors, have a lesser
+impact on task completion. Thus, it is essential to amplify
+the impact of effective features in the network while reducing
+the influence of features with weak correlations. This entails
+assigning different weights to features to regulate their contri-
+bution during the model learning process.
+The self-attention mechanism enables the network to adap-
+tively learn the correlation degree between the features on
+the feature map in the global scope, so as to calculate the
+influence degree between the components on the feature map,
+determine its weight, and extract the important information
+from the redundant information more effectively [41]. This is
+particularly crucial for remote sensing images with complex
+background information, as it enables more accurate removal
+of background information and extraction of important build-
+ing features. Therefore, this section focuses on enhancing
+building features through the utilization of the self-attention
+mechanism.
+The FE module based on the self-attention mechanism,
+as described in this section, comprises three components: fea-
+ture transformation, self-attention, and normalization, as illus-
+trated in Fig. 16.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+5602818 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024
+Fig. 16. Feature enhancement module.
+Fig. 17. Feature transformation module.
+Fig. 18. Self-attention module.
+1) Feature Transformation Module: In the feature trans-
+formation part, the input feature dimension is adjusted to
+match the requirement of the self-attention part. As depicted in
+Fig. 17, the input feature matrix has a dimension of (C, W , H ),
+with W and H denoting the width and height of the fea-
+ture, respectively. The input is expanded and dimensionally
+transformed to generate a new feature map with a dimension
+of ( W × H, C), where C represents the number of output
+channels. Subsequently, the self-attention input is obtained via
+the fully connected layer, with each input having a dimension
+of (W × H, C). The overall process is shown in the following
+equation:
+Q = fc
+ 
+flat(F)t . (1)
+Here, F denotes the feature map input to the feature
+transformation part, flat denotes the expansion operation, t rep-
+resents the transpose operation, and fc represents the fully
+connected layer. The inputs Q, K , and V for the self-attention
+part are obtained using the mentioned operations.
+2) Self-Attention Module: The self-attention part, illustrated
+in Fig. 18, performs weight distribution on the feature map.
+After the feature map undergoes the feature transformation
+module, three feature matrices Q, K , and V are acquired. Q
+and K are employed to compute the mutual attention between
+features, while V represents the characteristics of the current
+feature itself.
+In the self-attention layer, these three matrices are utilized
+as inputs. First, the weight coefficients are calculated by
+taking the transpose of Q and K . The resulting product
+represents the mutual correlation between features, forming
+an attention map with dimensions of ( W × H, W × H ).
+The attention map is divided by the square of the vector
+dimension and processed through a softmax function, resulting
+in an attention matrix. This attention matrix describes the
+Fig. 19. Normalization module.
+weight distribution that assigns different importance to input
+features, determining how much the remaining features on
+the feature map should contribute at the current position. The
+V matrix is obtained by directly modifying the input matrix,
+capturing the self-correlation of the input. Subsequently, the
+attention matrix and V matrix are multiplied, yielding the
+output matrix through tensor transformation. The output matrix
+has dimensions of ( W × H, C). The complete process is
+presented in the following equation:
+out = V × Softmax(dot(Q, (K )t )/√d) (2)
+where t denotes the transpose operation, dot denotes the dot
+product, and d denotes the dimensions of Q and K .
+3) Normalization Module: Due to the multiplication oper-
+ation in the previous step, the data distribution can become
+very large. To improve the stability of the model, this chapter
+applies the layer normalization method, as depicted in Fig. 19,
+to normalize the output value of each channel to a distri-
+bution with a mean of 0 and a variance of 1. Finally, the
+output undergoes dimension transformation and is added to
+the original image as a residual connection. The final output
+feature dimension matches the feature dimension entering the
+FE module, i.e., ( C, W , H ). The specific calculation process
+of layer normalization is illustrated in the following equation:
+Ui =
+Pwh−1
+k=0 x ki
+w × h (3)
+Si =
+Pwh−1
+k=0
+ 
+x ki − Ui 2
+w × h (4)
+Outi = Xi − Ui√Si + ζ . (5)
+The self-attention mechanism, like traditional CNN, is capa-
+ble of feature extraction and can yield a less noisy feature map.
+However, the remarkable performance of the self-attention
+mechanism comes at the cost of increased parameter count.
+If the self-attention mechanism is used to entirely replace
+traditional CNN for feature extraction, the exponentially grow-
+ing number of parameters would significantly slow down
+network convergence and necessitate better hardware support.
+Taking into account the effective feature extraction benefits
+of the self-attention mechanism and the challenges posed by
+extensive computations, this chapter chooses to incorporate a
+FE module based on the self-attention mechanism after the
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+Y AN et al.: BUILDING EXTRACTION AT AIS LEVEL: DATASETS AND FRAMEWORK 5602818
+Fig. 20. Bi-layer segmentation branch based on RSBL constraint.
+residual network. The input and output of the enhancement
+module in Fig. 16 demonstrate that the features of the building
+are enhanced after passing through the FE module. By utilizing
+a reduced number of parameters, significant enhancement of
+target features is achieved.
+B. RSBL
+1) Bi-Layer Segmentation Branch: The challenge in pre-
+dicting occluded targets lies in the fact that the occluded
+area is concealed, making it difficult to learn the features
+within. Hence, in the mask segmentation stage, this section
+employs a bi-layer structure based on RSBL to hierarchically
+predict the occluded and occluding objects. The prediction
+outcome of the occlusion is utilized as auxiliary information
+for predicting the building target, thus accomplishing the
+overall prediction of the building target.
+Fig. 20 illustrates that the upper branch employs the anno-
+tated occlusion category as the supervision information, while
+the lower branch uses the annotated building. The occlusion
+features generated by the upper branch serve as auxiliary
+inputs to the lower branch, together with the feature map
+obtained in the previous step through the residual method,
+for predicting the overall building area. In the absence of
+occlusion, the occlusion branch does not produce output.
+Instead, the feature information acquired in the previous
+step directly enters the branch responsible for predicting the
+occluded object, ultimately yielding the building mask.
+2) Remote Sensing Boundary Loss Function (RSBL): Seg-
+mentation of adjacent and densely populated buildings from
+multiple views poses a challenge. To address this issue, this
+section introduces the RSBL function based on BF1 [43], [44]
+in the segmentation part. RSBL aims to overcome the net-
+work’s limitations in dealing with such scenarios by enhancing
+its focus on the building’s boundary, improving its ability
+to represent boundaries, and distinguishing distinct building
+instances within adjacent or dense scenes. While loss functions
+are typically used to measure the difference between a mask
+and the ground truth in instance segmentation, this approach
+fails to fully attend to and correct discrepancies between the
+predicted boundary and the ground truth boundary. RSBL
+addresses this by monitoring the building’s boundary through-
+out the training process, measuring the difference between
+boundary pixels and ground truth boundary pixels.
+To construct the boundary loss, it is necessary to obtain the
+target’s boundary in both the predicted value and the ground
+truth value. To achieve this, as depicted in (6), the Softmax
+Fig. 21. Boundary diagram: (a) original diagram, (b) truth mask, (c) truth
+boundary, and (d) prediction boundary.
+operation is employed to stabilize the data distribution of the
+prediction results. The prediction results are then extended
+using the maximum pooling operation. By subtracting the
+original prediction values from the extended prediction results,
+the prediction boundary can be obtained. Similarly, for the
+ground truth boundary, as shown in (7), the same operations
+are applied to the ground truth values. If a thicker boundary
+is desired, the maximum pooling operation can be used to
+construct the extended boundary for both the predicted value
+and the ground truth value. Equations (8) and (9) illustrate the
+construction process of the extended boundary:
+ypredb = pool(Softmax(ypred), θ)-(Softmax(ypred)) (6)
+ygtb = pool(Softmax(ygt), θ)-(Softmax(ygt)) (7)
+ygtbext = pool(ygt, θ ) (8)
+ypredbext = pool(ypred, θ ). (9)
+Let ygt denote the ground truth, ygtb represent the obtained
+ground truth boundary, ygtbext be the extended ground truth
+boundary, ypred denote the predicted result, ypredb represent
+the predicted boundary, ypredbext be the extended prediction
+boundary, pool indicate the maximum pooling operation, and
+θ be the hyperparameter controlling the maximum pooling
+operation.
+Fig. 21 displays the boundary information obtained from the
+aforementioned operation. Subsequently, precision and recall
+are defined as (10) and (11), respectively,
+Precision = sum(ypredb ◦ ygtbext)sum(ypredb) (10)
+Recall = sum(ygtb ◦ ypredbext)sum(ygtb) (11)
+where ◦ represents the dot product and sum represents the
+summation operation. Since the boundary part contains fewer
+pixels, the background part has more pixels, and the BCE
+loss is easily affected by the class imbalance. Therefore,
+the boundary loss RSBL shown in the following equation is
+defined based on the F1 loss:
+RSBL = 1 − 2 × PrecisionPrecision + Recall . (12)
+In the network’s structure, the boundary loss functions
+for the two branches, RSBL occ and RSBL obj, need to be
+defined separately. The former represents the loss function
+for occlusion, while the latter represents the loss function
+for the target. These two loss functions are combined to
+simultaneously constrain the boundary of the upper and lower
+branches.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+5602818 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024
+TABLE IV
+QUANTITATIVE RESULTS ABOUT “BUILDING ” CATEGORY ON
+MVB-Z URICH ILLUSTRATED BY MASK R-CNN, C ASCADE
+R-CNN, S WIN -T RANSFORMER , YOLACT ,
+BLENDMASK , BCN ET, AND OURS
+C. Model Evaluation Indicators
+Instance segmentation usually uses average accuracy (AP)
+as an evaluation index, such as mAP shown in (13) and AP 50,
+AP75
+mAP = 1C XC
+ 
+1
+ts
+X
+t
+TP(t)
+TP(t) + FP(t)
+!
+(13)
+IOU = P ∩ GP ∪ G . (14)
+Here, C represents the number of categories, and ts
+represents the IOU threshold value. The IOU, as defined
+in (14), measures the intersection-union ratio between the
+predicted result P and the ground truth result G. A higher
+intersection-union ratio indicates a closer match between the
+predicted result and the ground truth. For instance, AP 50 and
+AP75 represent the AP values when the IOU threshold exceeds
+0.5 and 0.75, respectively. TP and FP refer to the number
+of correctly predicted pixels and the number of incorrectly
+predicted pixels for a given class, respectively.
+V. E XPERIMENTS AND ANALYSIS
+This section utilizes several typical instance segmentation
+algorithms to assess the effectiveness of the two datasets and
+analyze the experimental results based on the characteristics
+of each dataset.
+A. Experiments and Analysis on MVB-Zurich Dataset
+1) Building Category: Table IV presents the quantitative
+results for the “building” category on MVB-Zurich dataset,
+using mask R-CNN [35], Cascade R-CNN [36], Swin-
+transformer [37], YOLACT [30], Blendmask [32], BCNet
+[38], and our proposed FE-RSBL-AmodalNet. Additionally,
+Fig. 22 displays the qualitative results on MVB-Zurich.
+By combining the quantitative and qualitative results,
+we can conclude the following:
+1) When the building edges were occluded, the predic-
+tions made by FE-RSBL-AmodalNet were closest to the
+ground truth, as seen in the first row of Fig. 22. We
+attribute this to the inclusion of RSBL, which allows
+the network to focus on the building boundaries. By
+inferring the occluded building boundaries based on
+TABLE V
+QUANTITATIVE RESULTS ABOUT “OCCLUSION ” CATEGORY ON
+MVB-Z URICH ILLUSTRATED BY MASK R-CNN, C ASCADE
+R-CNN, S WIN -TRANSFORMER , AND BLENDMASK
+the visible boundary regions, the model successfully
+predicts complete contours.
+2) In the original 9000 × 6732 pixels image, the variation
+in building sizes is relatively small, with mostly large
+and medium-sized buildings. However, when the original
+image is cropped into smaller sizes, incomplete build-
+ings can appear in the image, and these buildings tend
+to have smaller areas. This is evident in the second row
+of Fig. 22. Particularly in densely populated areas, seg-
+menting adjacent incomplete buildings becomes more
+challenging.
+3) In dense scenes, accurately distinguishing individual
+buildings within adjacent structures posed a challenge
+for the aforementioned algorithms. While FE-RSBL-
+AmodalNet occasionally succeeded in distinguishing
+individual buildings, the results were not consistently
+reliable, as seen in the second row of Fig. 22. We believe
+that the difficulty in distinguishing adjacent buildings in
+dense scenes arises not only from their complex shapes
+but also from the presence of incomplete buildings. In
+a 640 × 640 image, only a small portion of some
+buildings is represented, rather than the entire structure.
+This makes it challenging for the network to infer the
+boundaries of occluded parts based on limited visible
+regions.
+In conclusion, the MVB-Zurich dataset poses significant
+challenges due to occlusion, incomplete buildings, and the
+morphological complexity of adjacent structures in dense
+scenes. The use of RSBL-AmodalNet can address the issue of
+extracting complete contours for partially occluded buildings.
+However, in dense scenes, these algorithms may not be as
+effective. Therefore, finding methods to accurately extract
+buildings and distinguish adjacent structures, especially adja-
+cent incomplete buildings, is an important research problem
+within the MVB-Zurich dataset.
+2) Occlusion Category: Table V presents the quantitative
+results for the “occlusion” category on MVB-Zurich dataset,
+as demonstrated by mask R-CNN, Cascade R-CNN, Swin-
+transformer, and Blendmask.
+Additionally, Fig. 23 showcases the qualitative results
+for the “occlusion” category on MVB-Zurich dataset, using
+Swin-transformer.
+The occlusion in the MVB-Zurich dataset can be catego-
+rized into three types: occlusion caused by heterogeneous
+objects (primarily green plants), occlusion between adjacent
+buildings, and occlusion between independent buildings due
+to the photographic view.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+Y AN et al.: BUILDING EXTRACTION AT AIS LEVEL: DATASETS AND FRAMEWORK 5602818
+Fig. 22. Qualitative results about “building” category on MVB-Zurich: (a) original, (b) ground truth, (c) mask R-CNN, (d) cascade R-CNN, (e) Swin
+transformer, (f) YOLACT, (g) Blendmask, (h) BCNet, and (i) ours.
+Fig. 23. Qualitative results about “occlusion” category on MVB-Zurich
+illustrated by Swin-transformer, from left to right, it is: original, ground truth,
+and Swin-transformer.
+Overall, the instance segmentation network’s performance
+in predicting occlusion was unsatisfactory. Among several
+algorithms, Cascade R-CNN achieved the highest accuracy of
+3.5. Regarding the first type of occlusion, the network was able
+to detect the occlusion, but extracting the complete occlusion
+boundary proved to be challenging, as depicted in Fig. 23(a).
+For the second and third types of occlusions, the network was
+capable of localizing and segmenting them, but it was also
+susceptible to missed detections.
+We believe there were two reasons as follows:
+1) The occlusion areas themselves were relatively small,
+resulting in a small proportion of positive samples in
+the images. This led to an imbalance in the positive and
+negative sample proportions during network training.
+2) The occlusion between adjacent buildings or due to the
+photographic view between independent buildings was
+a characteristic shared with the buildings themselves.
+This made it challenging for the network to differentiate
+between these two types of occlusions and the actual
+buildings.
+In conclusion, while the instance segmentation network
+exhibited limited predictive capability for occlusion categories,
+it was still able to locate and segment heterogeneous occlu-
+sions with a relatively low probability of missed detection.
+Consequently, it can serve as prior information for AIS,
+enabling the AIS network to focus on the unpredictable
+occluded building contours and effectively extract complete
+buildings.
+TABLE VI
+AP OF THE VIEW EXPERIMENT
+Fig. 24. Quantitative results of the prediction to “building” category by
+FE-RSBL-AmodelNet when the data from view1 was used as the test set,
+from left to right, it is: original, ground truth, and FE-RSBL-AmodelNet.
+3) Experiments on the Multiview Characteristics of MVB-
+Zurich Dataset: The MVB-Zurich dataset is characterized
+by its multiview nature. To analyze the variations in images
+from different views, each view was tested individually. For
+these view-specific experiments, the dataset was divided into
+training and test sets. In each experiment, when the data from
+one view was used as the test set, the data from the remaining
+four views served as the training set. Table VI presents the
+quantitative results of FE-RSBL-AmodelNet’s predictions for
+the “building” category when each view’s data were used as
+the test set. Figs. 24–28 provide a qualitative analysis of each
+experiment.
+The results presented in Table VI provide the quantitative
+outcomes of each experiment. To explain the differences
+observed in the experiment results, we can highlight the
+following points:
+1) There were variations in the proportions of the train-
+ing set and test set across the different experiments,
+as shown in Table VII. This discrepancy contributed
+to the significant differences in the results of the five
+experiments.
+2) Images from different views exhibited dissimilarities.
+Buildings in view1 differed considerably from those in
+the other four views. View1 images primarily contained
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+5602818 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024
+Fig. 25. Quantitative results of the prediction to “building” category by
+FE-RSBL-AmodelNet when the data from view2 was used as the test set,
+from left to right, it is: original, ground truth, and FE-RSBL-AmodelNet.
+Fig. 26. Quantitative results of the prediction to “building” category by
+FE-RSBL-AmodelNet when the data from view3 was used as the test set,
+from left to right, it is: original, ground truth, and FE-RSBL-AmodelNet.
+Fig. 27. Quantitative results of the prediction to “building” category by
+FE-RSBL-AmodelNet when the data from view4 was used as the test set,
+from left to right, it is: original, ground truth, and FE-RSBL-AmodelNet.
+roof information, while the other views included both
+the roof and facade details of the buildings. When the
+view1 images were used as the test set and the images
+from the other views served as the training set, there
+was a substantial disparity between the training and test
+sets. This necessitated the network to possess better
+robustness, which further contributed to the notable
+disparities in the results of the five experiments.
+3) The color of the building tops in the MVB-Zurich
+dataset was similar to the background, which posed a
+challenge for the dataset. This contributed to the low
+mAP observed when using view1 images as the test set,
+as depicted in Fig. 24(a).
+4) Sometimes, in a 640 × 640 pixels image, only the
+local information of the building is available. The net-
+Fig. 28. Quantitative results of the prediction to “building” category by
+FE-RSBL-AmodelNet when the data from view5 was used as the test set,
+from left to right, it is: original, ground truth, and FE-RSBL-AmodelNet.
+TABLE VII
+DISTRIBUTION OF IMAGES AND GROUND OBJECTS FROM DIFFERENT
+VIEWS IN MVB-Z URICH DATASET
+work faced difficulties in identifying buildings based
+on local features. These three factors contributed to
+the increased segmentation difficulty, as depicted in
+Figs. 24(a), 25(b), 27(a), and 28(b).
+5) Distinguishing individual buildings in dense scenes was
+challenging, as illustrated in Fig. 28(a).
+6) In view2, view3, view4, and view5, the buildings in
+the test set were predominantly captured at an inclined
+angle, enhancing the inclusion of elevation information
+in the image. The occlusion in such images exhibited
+greater complexity, as highlighted in Figs. 25(b) and 26.
+7) The dataset faced significant challenges when the
+building roof was intricate and challenging to dif-
+ferentiate from the background, as demonstrated in
+Figs. 24(a) and 27(b).
+In summary, in the viewpoint experiment, besides the chal-
+lenges presented by dense scenes and incomplete buildings
+within the images, the variations in building morphology
+across different views, differences in intensity, and the diverse
+complexity of occlusion influenced the experimental out-
+comes. As a result, the network exhibited varying performance
+outcomes when processing images from different views.
+B. Experiments and Analysis on MSB-Dortmund Dataset
+1) Building Category: Table VIII presents the quantitative
+results for the “building” category on the MSB-Dortmund
+dataset obtained using mask R-CNN [35], cascade R-CNN
+[36], Swin-transformer [37], YOLACT [30], BlendMask [32],
+BCNet [38], and our proposed method.
+By combining the quantitative and qualitative results,
+we can conclude the following:
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+Y AN et al.: BUILDING EXTRACTION AT AIS LEVEL: DATASETS AND FRAMEWORK 5602818
+TABLE VIII
+QUANTITATIVE RESULTS ABOUT “BUILDING ” CATEGORY
+ON MSB-D ORTMUND ILLUSTRATED BY MASK R-CNN,
+CASCADE R-CNN, S WIN -T RANSFORMER , YOLACT,
+BLENDMASK , BCN ET, AND OURS
+TABLE IX
+AP ON “OCCLUSION ” CATEGORY OF THE MSB-D ORTMUND DATASET
+1) The edges of adjacent buildings in the MSB-Dortmund
+dataset, as depicted by FE-RSBL-AmodalNet, exhibited
+the closest resemblance to the ground truth, as evident
+from the first row of Fig. 29.
+2) In cases where buildings are occluded by heterogeneous
+objects and are not situated in dense scenes, even with
+occlusion areas as high as 15.8%, the predictions of
+FE-RSBL-AmodeNet remain very close to the actual
+values, as demonstrated in the second row of Fig. 29.
+Overall, FE-RSBL-AmodeNet exhibits good performance
+in scenarios where buildings are occluded by heterogeneous
+objects or are adjacent to other buildings in non-dense scenes.
+2) Occlusion Category: Table IX presents the quantitative
+results for the “occlusion” category on the MSB-Dortmund
+dataset obtained using mask R-CNN, cascade R-CNN, Swin-
+transformer, and Blendmask. Fig. 30 depicts the qualitative
+results for the “occlusion” category on the MSB-Dortmund
+dataset using Swin-transformer.
+Occlusions in the MSB-Dortmund dataset can be catego-
+rized as occlusions caused by heterogeneous objects (mostly
+green plants) and occlusions between adjacent buildings.
+When buildings were occluded by heterogeneous objects,
+the instance segmentation network accurately predicted the
+boundaries of the occluded parts. We believe that this is
+because there is a significant difference between heterogeneous
+occlusions and buildings, allowing the network to easily
+learn the relationship between buildings and their occluded
+parts, as depicted in Fig. 30(a). However, when it came to
+occlusions between buildings, although the network could
+identify such occlusions, the predicted masks were coarse and
+significantly deviated from the ground truth. We believe that
+this is due to the relatively small and challenging-to-learn
+difference between this type of occlusion and the building
+itself, as illustrated in Fig. 30(b).
+Consequently, predictions of occlusion, particularly occlu-
+sion caused by heterogeneous objects, can serve as prior
+TABLE X
+AP ON “ROOF ” CATEGORY OF THE MSB-D ORTMUND DATASET
+information for the AIS algorithm. This enables the network
+to concentrate on segments that pose difficulties.
+3) Roof Category: Table X presents the quantitative
+results of the “roof” category on MSB-Dortmund, demon-
+strated by mask R-CNN, cascade R-CNN, Swin-transformer,
+and Blendmask. Fig. 31 depicts the qualitative results of
+the “roof” category on MSB-Dortmund, demonstrated by
+Swin-transformer.
+The roofs of buildings in the MSB-Dortmund dataset were
+seldom obstructed. The challenge in roof prediction primarily
+arises from the roof’s irregular shape and the differentia-
+tion between the roof and the background, as illustrated in
+Fig. 31(b).
+4) Experiments on the Multisize Characteristics of the MSB-
+Dortmund Dataset: The defining characteristic of the MSB-
+Dortmund dataset was the significant variation in building
+sizes, ranging from small garage-sized structures to large
+residential buildings. The analysis focused on the features
+exhibited by buildings of varying sizes. Fig. 32 presents the
+qualitative outcomes of buildings with diverse sizes, as demon-
+strated by Swin-transformer.
+By integrating the quantitative results in Table VIII with
+the qualitative results portrayed in Fig. 32(a)–(d) concerning
+small-sized buildings, we can draw the following conclusions:
+1) Predicting small buildings posed a greater challenge
+compared to medium and large buildings, as indicated
+in Table VIII.
+2) The segmentation boundary appeared jagged, and there
+was some introduction of background information,
+as illustrated in Fig. 32(b).
+3) Regarding adjacent instances, buildings could not be
+identified. It is evident that when small buildings were
+in proximity, the network segmentation results devi-
+ated significantly from the ground truth, as depicted in
+Fig. 32(a).
+4) Concerning the adjacent scenario, small buildings could
+be identified, albeit with imprecise segmentation edges,
+as illustrated in Fig. 32(c).
+5) In instances where the building’s shape in the image
+was intricate and closely resembled the background,
+small buildings could not be discerned, as depicted in
+Fig. 32(d).
+Fig. 32(b)–(e) depicts medium-sized buildings. It can
+be observed that when these buildings are distributed
+independently, the network can accurately segment their
+edges, as demonstrated in Fig. 32(e). However, when the
+medium-sized buildings are adjacent to each other or exhibit
+adhesions, the segmentation edges become rough, as depicted
+in Fig. 32(b) and 32(d).
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+5602818 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024
+Fig. 29. Qualitative results about “building” category on MSB-Dortmund: (a) original, (b) ground truth, (c) mask R-CNN, (d) cascade R-CNN, (e) Swin
+transformer, (f) YOLACT, (g) Blendmask, (h) BCNet, and (i) ours.
+Fig. 30. Qualitative results about “occlusion” category on MSB-Dortmund
+illustrated by Swin-transformer, from left to right, it is: original, ground truth,
+and Swin-transformer.
+Fig. 31. Qualitative results about “occlusion” category on MSB-Dortmund
+illustrated by Swin-transformer, from left to right, it is: original, ground truth,
+and Swin-transformer.
+On the other hand, large buildings in the dataset are predom-
+inantly distributed independently. Consequently, the network
+can achieve more precise segmentation for such buildings,
+as illustrated in Fig. 32(f).
+Overall, the dataset presents certain challenges when it
+comes to small buildings. These challenges arise from the
+intricate shapes of small buildings themselves, as well as
+their proximity to adjacent structures. In the case of oblique
+photography, numerous occlusions occur between adjacent
+buildings, making it difficult for the network to grasp the dis-
+tinct characteristics of each individual building. As a result, the
+accuracy of prediction results is compromised. Additionally,
+the presence of adjacent buildings also poses difficulties in
+accurately predicting medium-sized structures.
+C. Supplementary Experiment
+To compare the characteristics of various FE methods and
+validate the efficacy of the proposed approach, a series of
+Fig. 32. Visualization results of size analysis experiment.
+comparative experiments were conducted. These experiments
+involved evaluating different FE methods, exploring various
+self-attention mechanisms, and examining different boundary
+loss functions.
+1) Comparative Experiments on Feature Enhancement: In
+the comparison of FE methods, three additional FE methods
+were included as follows:
+1) The FE method based on the channel dimension was
+adopted. Specifically, the channel attention mechanism
+called squeeze-and-excitation (SE), as described in [47],
+was introduced. This method calculates the weight infor-
+mation of the feature maps from the 2048 channels
+output by the ResNet50 architecture. First, a maximum
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+Y AN et al.: BUILDING EXTRACTION AT AIS LEVEL: DATASETS AND FRAMEWORK 5602818
+TABLE XI
+COMPARISON OF DIFFERENT FEATURE ENHANCEMENT
+METHODS FOR MSB-D ORTMUND DATASET
+TABLE XII
+COMPARISON OF DIFFERENT FEATURE ENHANCEMENT METHODS
+FOR MVB-Z URICH DATASET
+pooling operation is applied to each channel, followed
+by a fully connected operation to obtain the weight
+information of the feature map for each channel. The
+feature map is then multiplied by the corresponding
+weight, filtering the features on each channel to enhance
+important feature information and suppress insignificant
+feature information.
+2) The FE method involves grouping based on the channel
+dimension and utilizing spatial information. In the fea-
+ture space, a complete feature is composed of multiple
+sub-features that are distributed in groups across dif-
+ferent layers. These sub-features often contain different
+levels of noise information. If all sub-features are treated
+uniformly to obtain the next feature, it may result
+in incorrect recognition and localization outcomes. To
+address this issue, the spatial group-wise enhance (SGE)
+module was proposed in [48]. This module learns the
+global spatial semantic information within each group,
+determining the importance of each sub-feature. It then
+performs targeted learning and noise suppression for the
+different groups. In our experiment, we incorporated this
+method to enhance the features of building targets.
+3) The FE method described in [49] is utilized, which
+enhances features from both the channel and spatial
+dimensions. The objective is to highlight relevant fea-
+tures in each dimension separately. This is achieved by
+alternately enhancing features in the channel and spatial
+dimensions, enabling the network to focus on what
+should be learned in each dimension and which parts
+require attention. Incorporating attention to information
+from both dimensions promotes the flow of information
+within the network.
+The experimental results on MSB-Dortmund and MVB-
+Zurich datasets are shown in Tables XI and XII, respectively.
+According to the results, CBAM demonstrates the best FE
+effect for the MSB-Dortmund dataset, followed by self-
+attention (SA). For the MVB-Zurich dataset, SA achieves
+the best effect, followed by SGE. Overall, the SA method
+TABLE XIII
+COMPARISON OF DIFFERENT SELF -ATTENTION STRUCTURES
+IN MSB-D ORTMUND DATASET
+exhibits relatively stable FE and shows higher adaptability to
+the dataset. While all these methods enhance the expressive
+capabilities of the model and aid in better understanding
+and learning of input data, the SA method possesses sev-
+eral unique advantages. First, the SA mechanism models
+the relationships between neighboring pixels by weighting
+the input data with different weights, effectively preserving
+information from all parts of the input data and preventing
+information loss caused by convolution operations. Second,
+the SA mechanism excels at distinguishing information. By
+locally differentiating the input data and selectively fusing data
+from various parts, it enables the extraction of higher-quality
+image features. Finally, the SA mechanism can capture long-
+range dependencies. Through feature fusion, it is capable of
+capturing dependencies that extend over long distances. Hence,
+for tasks involving long-range dependencies in images, the
+SA mechanism can better capture key features. In contrast,
+CBAM focuses on capturing significant differences between
+features by constraining dependencies between channels, mak-
+ing it challenging to model global long-range dependencies. In
+summary, the SA approach can achieve a more stable effect.
+2) Comparative Experiments on Self-Attention Structure:
+In the comparison between multihead attention and multilayer
+attention structures for self-attention, the multihead attention
+mechanism involves dividing or replicating the input matrix
+along the channel dimension. This division allows the model
+to attend to different aspects of information by treating them as
+separate subspaces. The self-attention mechanism is then com-
+puted on these distinct channel groups or replicated channel
+groups. Finally, the outputs of the multihead self-attention are
+combined through channel concatenation or feature addition
+to obtain the multihead attention output.
+The current FE module based on the self-attention mecha-
+nism is incorporated into the last layer of the ResNet feature
+extraction structure. To assess the effectiveness of a multilayer
+FE structure, this study introduces the FE structure after res3,
+res4, and res5 of the ResNet. This allows for a comparison
+of whether applying FE at different layers yields improved
+results.
+The experimental results are presented in Tables XIII
+and XIV. Single-layer self-attention-based FE achieves the
+best results compared to the multihead attention and multilayer
+attention structures. In the case of multihead attention, each
+head may produce different outputs. This means that in the
+multihead self-attention mechanism, the heads operate inde-
+pendently and may extract different features. Consequently,
+this can lead to inconsistency in predictions, thereby impact-
+ing the overall model performance. Regarding the multilayer
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+5602818 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024
+TABLE XIV
+COMPARISON OF DIFFERENT SELF -ATTENTION STRUCTURES
+IN MVB-Z URICH DATASET
+TABLE XV
+COMPARISON OF DIFFERENT BOUNDARY LOSS
+ON MSB-D ORTMUND DATASET
+TABLE XVI
+COMPARISON OF DIFFERENT BOUNDARY LOSS
+ON MVB-Z URICH DATASET
+attention structure, the FE module is introduced in the shallow
+layers of the feature extraction process. Shallow features tend
+to retain more background information. As a result, this
+simultaneous enhancement of background and target infor-
+mation can detrimentally affect the performance of feature
+extraction. Overall, the single-layer self-attention-based FE
+approach outperforms the multihead attention and multilayer
+attention structures, suggesting its effectiveness in improving
+model performance.
+3) Comparative Experiments on Boundary Loss Function:
+In addition to using the F1 loss for defining the RSBL function,
+this study also compares the RSBL based on intersection over
+union (IOU). The detailed experimental results are presented
+in Tables XV and XVI. These results provide a comparison
+of the performance of the boundary loss function based on F1
+loss and IOU for remote sensing tasks.
+In the boundary region, the number of pixels belonging
+to the boundary is typically much smaller compared to the
+background pixels in the feature map. Judging the boundary
+pixels individually may be influenced by the class imbalance
+issue. However, if the boundary can be assessed as a whole,
+it can mitigate the impact of this category imbalance. This
+article compares the IOU and F1 loss methods for addressing
+this challenge. While both IOU and F1 loss methods evaluate
+the overall overlap between the predicted boundary and the
+ground truth boundary, F1 loss considers both precision and
+recall rates, providing a more accurate assessment of the
+difference between the predicted and ground truth values. On
+the other hand, IOU loss solely focuses on the intersection
+ratio between the predicted and ground truth areas, lacking
+a more comprehensive evaluation of the difference. Based on
+the experimental results, it is observed that F1 loss achieves
+higher prediction accuracy, indicating its superior performance
+compared to IOU loss.
+VI. C ONCLUSION
+AIS can solve the problem of traditional instance segmen-
+tation, that is, when buildings are occluded, the complete
+building contour cannot be extracted. In this article, two AIS
+datasets in the field of remote sensing, multiview building
+dataset for the Zurich region (MVB-Zurich) and multisize
+building dataset for the Dortmund region (MSB-Dortmund),
+and a new framework AIS network based on FE and RSBL,
+FE-RSBL-AmodalNet, were proposed.
+The datasets used in this study, MVB-Zurich and MSB-
+Dortmund, were specifically chosen for their abundance of
+occlusion areas, making them suitable for investigating AIS in
+remote sensing. Additionally, the MVB-Zurich dataset offers
+rich multiview characteristics, while the MSB-Dortmund
+dataset provides diverse multisize characteristics. These char-
+acteristics of the datasets enhance their research value and
+contribute to a comprehensive study in this field. The article
+explores and analyzes the multiview and multisize characteris-
+tics of the datasets to gain deeper insights into AIS in remote
+sensing.
+For the multiview characteristic of the MVB-Zurich dataset
+and the multisize characteristic of the MSB-Dortmund
+datasets, there were still several problems as follows:
+1) The problems of dense scenes, complex building shapes,
+and close colors to the surrounding environment, a large
+number of occlusions caused by adjacent buildings,
+and incomplete large buildings in small-size images
+brought some challenges to the MVB-Zurich dataset.
+In addition, experiments on views showed that due to
+the differences in images in each view, the network
+performed differently on images from different views.
+2) The problems of adjacent buildings, complex shapes,
+and close to the background brought some challenges
+to the MSB-D dataset. In addition, experiments on
+different sizes showed that it was more difficult to
+predict small-sized buildings, such as garages, followed
+by medium-sized buildings.
+To address the specific challenges of remote sensing images,
+the proposed framework incorporates an FE module based on
+the self-attention mechanism and an RSBL. This framework
+aims to enhance the attention toward the target and suppress
+irrelevant background information. Additionally, by incor-
+porating the RSBL, the model gains better capability in
+predicting the boundaries of occluded parts of buildings.
+The experimental results demonstrate that the proposed
+framework performs effectively when buildings are occluded
+by heterogeneous objects or are located adjacent to other build-
+ings in non-dense scenes. This suggests that the framework
+successfully addresses the challenges posed by occlusions
+and complex backgrounds, enabling accurate AIS in such
+scenarios.
+However, for the problems of adjacent buildings in dense
+scenes, complex shapes or close to the color of the surround-
+ing environment, and incomplete buildings, several instance
+segmentation algorithms currently used cannot be solved.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+Y AN et al.: BUILDING EXTRACTION AT AIS LEVEL: DATASETS AND FRAMEWORK 5602818
+Addressing these challenges represents valuable research
+directions for the proposed datasets. In addition, the robustness
+of the MVB-Zurich dataset on the different views and the
+prediction of small-sized targets in the MSB-Dortmund dataset
+are also worthy of attention. It is hoped that our dataset can
+contribute to the study of AIS in the field of remote sensing.
+ACKNOWLEDGMENT
+The authors express their gratitude to the data provision
+by ISPRS, EuroSDR. Thanks go to the staff members of the
+Google Earth Engine, and the MIT Laboratory of Computer
+Science and Artificial Intelligence.
+REFERENCES
+[1] J. Xiao, M. Gerke, and G. V osselman, “Building extraction from
+oblique airborne imagery based on robust façade detection,” ISPRS J.
+Photogramm. Remote Sens., vol. 68, pp. 56–68, Mar. 2012.
+[2] J. Huang, X. Zhang, Q. Xin, Y . Sun, and P. Zhang, “Automatic building
+extraction from high-resolution aerial images and LiDAR data using
+gated residual refinement network,” ISPRS J. Photogramm. Remote
+Sens., vol. 151, pp. 91–105, May 2019.
+[3] R. Alshehhi, P. R. Marpu, W. L. Woon, and M. D. Mura, “Simultaneous
+extraction of roads and buildings in remote sensing imagery with
+convolutional neural networks,” ISPRS J. Photogramm. Remote Sens.,
+vol. 130, pp. 139–149, Aug. 2017.
+[4] M. Li, A. Stein, W. Bijker, and Q. Zhan, “Urban land use extraction from
+very high resolution remote sensing imagery using a Bayesian network,”
+ISPRS J. Photogramm. Remote Sens., vol. 122, pp. 192–205, Dec. 2016.
+[5] I. Grinias, C. Panagiotakis, and G. Tziritas, “MRF-based segmentation
+and unsupervised classification for building and road detection in peri-
+urban areas of high-resolution satellite images,” ISPRS J. Photogramm.
+Remote Sens., vol. 122, pp. 145–166, Dec. 2016.
+[6] S. Du, F. Zhang, and X. Zhang, “Semantic classification of urban build-
+ings combining VHR image and GIS data: An improved random forest
+approach,” ISPRS J. Photogramm. Remote Sens., vol. 105, pp. 107–119,
+Jul. 2015.
+[7] Q. Wen et al., “Automatic building extraction from Google Earth images
+under complex backgrounds based on deep instance segmentation net-
+work,” Sensors, vol. 19, no. 2, p. 333, Jan. 2019.
+[8] K. Li and J. Malik, “Amodal instance segmentation,” in Com-
+puter Vision—ECCV 2016: 14th European Conference, Amsterdam,
+The Netherlands, October 11–14, 2016, Proceedings, Part II 14.
+Springer, 2016, pp. 677–693.
+[9] T. R. Scherzer and V . Ekroll, “Partial modal completion under occlusion:
+What do modal and amodal percepts represent?” J. Vis., vol. 15, no. 1,
+p. 22, Jan. 2015, doi: 10.1167/15.1.22.
+[10] T.-Y Lin et al., “Microsoft COCO: Common objects in context,” in
+Computer Vision—ECCV 2014: 13th European Conference, Zurich,
+Switzerland, September 6–12, 2014, Proceedings, Part V 13. Springer,
+2014, pp. 740–755.
+[11] M. Everingham, S. M. A. Eslami, L. Van Gool, C. K. I. Williams,
+J. Winn, and A. Zisserman, “The Pascal visual object classes challenge:
+A retrospective,” Int. J. Comput. Vis., vol. 111, no. 1, pp. 98–136,
+Jan. 2015.
+[12] L. Qi, L. Jiang, S. Liu, X. Shen, and J. Jia, “Amodal instance segmenta-
+tion with KINS dataset,” in Proc. IEEE/CVF Conf. Comput. Vis. Pattern
+Recognit. (CVPR), Jun. 2019, pp. 3009–3018.
+[13] Y . Zhu, Y . Tian, D. Metaxas, and P. Dollár, “Semantic amodal segmen-
+tation,” in Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR),
+Jul. 2017, pp. 3001–3009.
+[14] P. Follmann, R. König, P. Härtinger, M. Klostermann, and T. Böttger,
+“Learning to see the invisible: End-to-end trainable amodal instance
+segmentation,” in Proc. IEEE Winter Conf. Appl. Comput. Vis. (WACV),
+Jan. 2019, pp. 1328–1336.
+[15] P. Follmann, T. Bottger, P. Hartinger, R. Konig, and M. Ulrich, “MVTec
+D2S: Densely segmented supermarket dataset,” in Computer Vision—
+ECCV 2018: 15th European Conference, Munich, Germany, September
+8–14, 2018, Proceedings, Part V 15, vol. 11214, X. V . Ferrari, M. Hebert,
+C. Sminchisescu, and Y . Weiss, Eds. Springer, 2018, pp. 581–597.
+[16] S. Paisitkriangkrai, J. Sherrah, P. Janney, and A. van den Hengel,
+“Semantic labeling of aerial and satellite imagery,” IEEE J. Sel. Top-
+ics Appl. Earth Observ. Remote Sens., vol. 9, no. 7, pp. 2868–2881,
+Jul. 2016.
+[17] E. Maggiori, Y . Tarabalka, G. Charpiat, and P. Alliez, “Can semantic
+labeling methods generalize to any city? The inria aerial image labeling
+benchmark,” in Proc. IEEE Int. Geosci. Remote Sens. Symp. (IGARSS),
+Jul. 2017, pp. 3226–3229.
+[18] R. Roscher, M. V olpi, C. Mallet, L. Drees, and J. D. Wegner, “Semcity
+toulouse: A benchmark for building instance segmentation in satellite
+images,” ISPRS Ann. Photogramm., Remote Sens. Spatial Inf. Sci., vol. 5,
+pp. 109–116, Aug. 2020.
+[19] G. Sokar, D. C. Mocanu, and M. Pechenizkiy, “SpaceNet: Make free
+space for continual learning,” Neurocomputing, vol. 439, pp. 1–11,
+Jun. 2021.
+[20] AIcrowd|Mapping Challenge|Challenges. Accessed: May 19, 2021.
+[Online]. Available: https://www.aicrowd.com/challenges/mapping-
+challenge-old#datasets
+[21] S. W. Zamir et al., “iSAID: A large-scale dataset for instance segmen-
+tation in aerial images,” in Proc. IEEE/CVF Conf. Comput. Vis. Pattern
+Recognit. Workshops, Jun. 2019, pp. 28–37.
+[22] (2023). IEEE GRSS Data Fusion Contest. [Online]. Available:
+https://www.grss-ieee.org/technical-committees/image-analysis-and-
+data-fusion/
+[23] Benchmark on High Density Areial Image Matching. Accessed:
+Sep. 2014. [Online]. Available: https://ifpwww.ifp.uni-stuttgart.de/
+ISPRS-EuroSDR/ImageMatching/Default.aspx
+[24] F. Nex, M. Gerke, F. Remondino, H.-J. Przybilla, M. Bäumker, and
+A. Zurhorst, “ISPRS benchmark for multi-platform photogrammetry,”
+ISPRS Ann. Photogramm., Remote Sens. Spatial Inf. Sci., vol. 2,
+pp. 135–142, Mar. 2015.
+[25] B. C. Russell, A. Torralba, K. P. Murphy, and W. T. Freeman, “LabelMe:
+A database and Web-based tool for image annotation,” Int. J. Comput.
+Vis., vol. 77, nos. 1–3, pp. 157–173, May 2008.
+[26] A. Arnab and P. H. S. Torr, “Bottom-up instance segmentation using
+deep higher-order CRFs,” 2016, arXiv:1609.02583.
+[27] Y . Liu et al., “Affinity derivation and graph merge for instance segmen-
+tation,” in Proc. Eur . Conf. Comput. Vis. (ECCV), 2018, pp. 686–703.
+[28] D. Neven, B. D. Brabandere, M. Proesmans, and L. Van Gool, “Instance
+segmentation by jointly optimizing spatial embeddings and clustering
+bandwidth,” in Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit.
+(CVPR), Jun. 2019, pp. 8829–8837.
+[29] P. O. Pinheiro, R. Collobert, and P. Dollár, “Learning to segment object
+candidates,” 2015, arXiv:1506.06204.
+[30] D. Bolya, C. Zhou, F. Xiao, and Y . J. Lee, “YOLACT: Real-time instance
+segmentation,” in Proc. IEEE/CVF Int. Conf. Comput. Vis. (ICCV),
+Oct. 2019, pp. 9156–9165.
+[31] X. Wang, T. Kong, C. Shen, Y . Jiang, and L. Li, “SOLO: Segmenting
+objects by locations,” in Proc. 16th Eur . Conf. Comput. Vis. (ECCV).
+Glasgow, U.K.: Springer, Aug. 2020, pp. 649–665.
+[32] H. Chen, K. Sun, Z. Tian, C. Shen, Y . Huang, and Y . Yan, “Blend-
+Mask: Top-down meets bottom-up for instance segmentation,” in Proc.
+IEEE/CVF Conf. Comput. Vis. Pattern Recognit. (CVPR), Jun. 2020,
+pp. 8570–8578.
+[33] E. Xie et al., “PolarMask: Single shot instance segmentation with polar
+representation,” in Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit.
+(CVPR), Seattle, W A, USA, Jun. 2020, pp. 12190–12199.
+[34] Z. Zhang, A. Chen, L. Xie, J. Yu, and S. Gao, “Learning semantics-
+aware distance map with semantics layering network for amodal instance
+segmentation,” in Proc. 27th ACM Int. Conf. Multimedia, Oct. 2019,
+Art. no. 21242132.
+[35] K. He, G. Gkioxari, P. Dollár, and R. Girshick, “Mask R-CNN,” in Proc.
+IEEE Int. Conf. Comput. Vis. (ICCV), Oct. 2017, pp. 2980–2988.
+[36] Z. Cai and N. Vasconcelos, “Cascade R-CNN: Delving into high
+quality object detection,” in Proc. IEEE/CVF Conf. Comput. Vis. Pattern
+Recognit., Jun. 2018, pp. 6154–6162.
+[37] Z. Liu et al., “Swin transformer: Hierarchical vision transformer using
+shifted windows,” in Proc. IEEE/CVF Int. Conf. Comput. Vis. (ICCV),
+Oct. 2021, pp. 9992–10002.
+[38] L. Ke, Y .-W. Tai, and C.-K. Tang, “Deep occlusion-aware instance
+segmentation with overlapping BiLayers,” in Proc. IEEE/CVF Conf.
+Comput. Vis. Pattern Recognit. (CVPR), Jun. 2021, pp. 4018–4027.
+[39] C. R. Jung and R. Schramm, “Rectangle detection based on a windowed
+Hough transform,” in Proc. 17th Brazilian Symp. Comput. Graph. Image
+Process., 2004, pp. 113–120.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 
+5602818 IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 62, 2024
+[40] T. Kim, T.-Y . Lee, Y . Jae Lim, and K.-O. Kim, “The use of voting
+strategy for building extraction from high resolution satellite images,” in
+Proc. IEEE Int. Geosci. Remote Sens. Symp. (IGARSS), vol. 2, Jul. 2005,
+pp. 1269–1272.
+[41] K. Ahmed, N. S. Keskar, and R. Socher, “Weighted transformer network
+for machine translation,” 2017, arXiv:1711.02132.
+[42] A. Bokhovkin and E. Burnaev, “Boundary loss for remote sensing
+imagery semantic segmentation,” inProc. Int. Symp. Neural Netw. Cham,
+Switzerland: Springer, 2019, pp. 388–401.
+[43] G. Csurka, D. Larlus, F. Perronnin, and F. Meylan, “What is a good
+evaluation measure for semantic segmentation?” IEEE Trans. Pattern
+Anal. Mach. Intell., vol. 26, no. 1, pp. 10–5244, Sep. 2004.
+[44] E. Fernandez-Moral, R. Martins, D. Wolf, and P. Rives, “A new
+metric for evaluating semantic segmentation: Leveraging global and
+contour accuracy,” in Proc. IEEE Intell. V ehicles Symp. (IV) , Jun. 2018,
+pp. 1051–1056.
+[45] Z. Tian, C. Shen, H. Chen, and T. He, “FCOS: Fully convolutional
+one-stage object detection,” in Proc. IEEE/CVF Int. Conf. Comput. Vis.
+(ICCV), Oct. 2019, pp. 9626–9635.
+[46] A. Vaswani et al., “Attention is all you need,” in Proc. 31st Int. Conf.
+Neural Inf. Process. Syst., 2017, pp. 6000–6010.
+[47] J. Hu, L. Shen, and G. Sun, “Squeeze-and-excitation networks,” in
+Proc. IEEE/CVF Conf. Comput. Vis. Pattern Recognit., Jun. 2018,
+pp. 7132–7141.
+[48] X. Li, X. Hu, and J. Yang, “Spatial group-wise enhance: Improv-
+ing semantic feature learning in convolutional networks,” 2019,
+arXiv:1905.09646.
+[49] S. Woo, J. Park, J. Y . Lee, and I. S. Kweon, “CBAM: Convolutional
+block attention module,” in Proc. Eur . Conf. Comput. Vis. (ECCV), 2018,
+pp. 3–19.
+Yiming Yan (Member, IEEE) received the B.E.,
+M.S., and Ph.D. degrees in electronics and infor-
+mation engineering and information and commu-
+nication engineering from the Harbin Institute of
+Technology, Harbin, China, in 2006, 2008, and 2013,
+respectively.
+From 2013 to 2016, he worked as a Post-Doctoral
+Researcher with the Department of Control Sci-
+ence and Engineering, Harbin Institute of Technol-
+ogy, to study remote sensing image processing and
+3-D reconstruction. Now, he joined Harbin Engi-
+neering University as an Associate Professor. His research interests focus on
+multimodal information extraction, image retrieval, and 3-D modeling based
+on satellite/aerial optical images, SAR images, and LiDAR data.
+Ying Qi received the B.S. degree in communica-
+tion engineering from Harbin Engineering Univer-
+sity (HEU), Harbin, China, in 2022, where she is
+currently pursuing the M.S. degree in electronic
+information engineering.
+Her research interests include deep learning,
+instance segmentation of remote sensing images, and
+weakly supervised instance segmentation.
+Congan Xu received the M.S. and Ph.D. degrees
+from Naval Aviation University, Yantai, China, in
+2013 and 2016, respectively.
+He is currently an Associate Professor with Naval
+Aviation University. He has undertaken more than
+ten projects, including the National Natural Science
+Foundation of China. His research interests include
+intelligent perception and fusion, deep learning, and
+its application.
+Nan Su (Member, IEEE) received the B.S. degree
+in electronic and information engineering and the
+M.S. and Ph.D. degrees in information and com-
+munication engineering from the Harbin Institute of
+Technology (HIT), Harbin, China, in 2010, 2012,
+and 2017, respectively.
+Since 2017, he has been working as a Teacher
+with Harbin Engineering University (HEU), Harbin,
+where he is currently an Associate Professor and a
+Master Supervisor with the College of Information
+and Communication Engineering. His research inter-
+ests include deep learning and multimodality remote sensing image processing
+and applications.
+Liuqing Yang received the M.S. degree in electronic
+information engineering from the Harbin Engineer-
+ing University (HEU), Harbin, China, in 2023.
+From 2020 to 2023, her research interests include
+deep learning, instance segmentation, adjacent build-
+ing segmentation, and weakly supervised instance
+segmentation.
+Authorized licensed use limited to: Xiamen University. Downloaded on November 01,2026 at 15:03:27 UTC from IEEE Xplore.  Restrictions apply. 

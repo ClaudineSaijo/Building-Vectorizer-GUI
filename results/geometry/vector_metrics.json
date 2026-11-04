@@ -1,0 +1,50 @@
+{
+  "method": "threshold -> connected contour -> approxPolyDP (eps=1.2% perimeter)",
+  "note": "naive vectorization baseline; no learned polygon head",
+  "mean_pixel_iou": 0.5809,
+  "mean_polygon_iou": 0.5701,
+  "mean_boundary_f1": 0.7793,
+  "mean_vertices_per_polygon": 8.06,
+  "per_scene": [
+    {
+      "scene": "shadow",
+      "index": 269,
+      "pixel_iou": 0.5557,
+      "polygon_iou": 0.547,
+      "boundary_f1": 0.6432,
+      "num_polygons": 30,
+      "mean_vertices": 9.27,
+      "simplification_loss": 0.0087
+    },
+    {
+      "scene": "dense",
+      "index": 175,
+      "pixel_iou": 0.5501,
+      "polygon_iou": 0.5438,
+      "boundary_f1": 0.7951,
+      "num_polygons": 115,
+      "mean_vertices": 8.34,
+      "simplification_loss": 0.0062
+    },
+    {
+      "scene": "small",
+      "index": 169,
+      "pixel_iou": 0.5869,
+      "polygon_iou": 0.5822,
+      "boundary_f1": 0.8265,
+      "num_polygons": 117,
+      "mean_vertices": 7.9,
+      "simplification_loss": 0.0047
+    },
+    {
+      "scene": "clutter",
+      "index": 76,
+      "pixel_iou": 0.6309,
+      "polygon_iou": 0.6074,
+      "boundary_f1": 0.8523,
+      "num_polygons": 11,
+      "mean_vertices": 6.73,
+      "simplification_loss": 0.0235
+    }
+  ]
+}

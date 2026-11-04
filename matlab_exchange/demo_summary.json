@@ -1,0 +1,17 @@
+{
+  "script": "pycharm/run_demo.py",
+  "checkpoint": "D:\\All4DS\\BISHE\\runs\\full\\best.pt",
+  "checkpoint_epoch": 11,
+  "device": "CPU",
+  "torch": "2.14.1+cpu",
+  "num_patches": 8,
+  "mean_iou": 0.5253,
+  "non_failure_mean_iou": 0.6451,
+  "failure_mean_iou": 0.1658,
+  "min_iou": 0.1604,
+  "max_iou": 0.7691,
+  "mean_biou": 0.391,
+  "mean_small_recall": 0.6017,
+  "mean_merge_rate": 0.3177,
+  "elapsed_sec": 1.23
+}
