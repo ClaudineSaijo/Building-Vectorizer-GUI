@@ -1,4 +1,4 @@
-"""生成桌面上的论文汇报 PPT。"""
+"""Generate the thesis presentation PPT on the desktop."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -179,13 +179,13 @@ def build():
     prs.slide_height = Inches(7.5)
     blank = prs.slide_layouts[6]
 
-    # ---------------- 1. 封面 ----------------
+    # ---------------- 1. Cover ----------------
     s = prs.slides.add_slide(blank)
     bg = s.background.fill
     bg.solid()
     bg.fore_color.rgb = NAVY
     add_rect(s, 0, 0, 0.16, 7.5, TEAL)
-    # 右侧航拍图
+    # Aerial image on the right
     add_rect(s, 8.38, 1.03, 4.36, 4.36, RGBColor(0x1B, 0x35, 0x50))
     pic, *_ = add_picture_fit(s, ROOT / "results" / "figures" / "cover_patch.jpg", 8.45, 1.10, 4.22, 4.22)
     pic.line.color.rgb = TEAL_L
@@ -200,7 +200,7 @@ def build():
     add_text(s, "Python · PyTorch · PyCharm · MATLAB", 0.82, 6.45, 7.0, 0.3, 9.5, False, TEAL_L)
     add_notes(s, "各位老师好，我的论文题目是《基于深度学习的航拍图像建筑物自动提取》。本次汇报重点介绍数据难点、方法设计、三组对照实验和失败案例分析。")
 
-    # ---------------- 2. 目录 ----------------
+    # ---------------- 2. Agenda ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "汇报提纲", "CONTENTS", 2)
@@ -220,7 +220,7 @@ def build():
             add_rect(s, 1.75, y + 0.82, 10.2, 0.012, MID)
     add_notes(s, "汇报分为五个部分：背景挑战、数据方法、实验结果、失败案例和结论展望。")
 
-    # ---------------- 3. 背景 ----------------
+    # ---------------- 3. Background ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "研究背景：建筑提取是遥感智能解译的基础任务", "从像素到矢量，支撑城市规划与灾害评估", 3)
@@ -243,7 +243,7 @@ def build():
              0.55, 5.85, 12.1, 0.8, 12.5, True, NAVY)
     add_notes(s, "建筑提取支撑城市规划、灾害评估、地图更新和违建监测。建筑像素只占约 18.7%，但要求逐像素准确，难度很高。")
 
-    # ---------------- 4. 挑战 ----------------
+    # ---------------- 4. Challenges ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "四类核心困难：从影像现象到评价指标", "数据集统计 + 失败模式 + 针对性指标", 4)
@@ -270,7 +270,7 @@ def build():
         add_text(s, text, x + 0.15, 6.06, 2.95, 0.28, 9.5, True, WHITE, PP_ALIGN.CENTER)
     add_notes(s, "我把困难拆成四类，并分别对应可量化的指标：边界用 Boundary IoU，小目标用实例召回，密集用粘连率。")
 
-    # ---------------- 5. 研究现状 ----------------
+    # ---------------- 5. Related work ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "研究现状与本文定位", "语义分割、边界质量和实例可分性三条线索", 5)
@@ -297,7 +297,7 @@ def build():
     add_text(s, "参考：Ronneberger et al., 2015；Chen et al., 2018；Cheng et al., 2021；Ji et al., 2019", 0.55, 6.45, 12.0, 0.3, 8.5, False, GRAY)
     add_notes(s, "相关工作主要有三条线：语义分割、边界评价与实例分离。本文的定位不是刷 SOTA，而是在统一预算下做归因实验。")
 
-    # ---------------- 6. 技术路线 ----------------
+    # ---------------- 6. Technical roadmap ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "技术路线：一条可复现的对照实验链", "数据 → 基线 → 多尺度 → 边界监督 → 三级评价", 6)
@@ -310,7 +310,7 @@ def build():
     for text, x in row2:
         add_rect(s, x, 4.25, box_w, box_h, WHITE, line=ORANGE, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.08)
         add_text(s, text, x + 0.18, 4.50, box_w - 0.3, 0.45, 13, True, NAVY)
-    # 箭头
+    # Arrows
     for x in [3.68, 7.33]:
         add_text(s, "→", x, 1.98, 0.5, 0.5, 22, True, TEAL, PP_ALIGN.CENTER)
     add_text(s, "↓", 9.0, 3.0, 0.5, 0.7, 22, True, ORANGE, PP_ALIGN.CENTER)
@@ -323,7 +323,7 @@ def build():
              1.2, 6.24, 10.9, 0.35, 11, True, TEAL, PP_ALIGN.CENTER)
     add_notes(s, "技术路线是一条闭环：数据量化、基线、ASPP、边界监督，最后用像素/边界/实例三级指标评价，并回到失败案例。")
 
-    # ---------------- 7. 数据 ----------------
+    # ---------------- 7. Data ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "数据：1 m 分辨率下的四类困难", "Massachusetts Buildings · 40 张训练影像 · 1325 个 256×256 图块", 7)
@@ -340,7 +340,7 @@ def build():
     add_text(s, "→ 单一 IoU 会被大建筑主导，必须补充边界与实例指标。", 9.55, 6.05, 3.2, 0.65, 9.5, True, ORANGE)
     add_notes(s, "测试集有近 1.8 万栋建筑，35% 小于 100 像素，61% 的图块超过 20 栋，而且测试集比训练集更密集、建筑更大。")
 
-    # ---------------- 8. 方法 U-Net + ASPP ----------------
+    # ---------------- 8. Method: U-Net + ASPP ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "方法一：U-Net 基线 + ASPP 多尺度上下文", "用同一编码器，逐项加入多尺度模块", 8)
@@ -351,17 +351,17 @@ def build():
         add_text(s, text, x + 0.06, 1.66, 1.38, 0.62, 8.8, True, color, PP_ALIGN.CENTER)
         if i < 4:
             add_text(s, "→", x + 1.52, 1.70, 0.28, 0.4, 16, True, GRAY, PP_ALIGN.CENTER)
-    # 跳跃连接
+    # Skip connections
     add_rect(s, 2.35, 2.55, 5.1, 0.02, MID)
     add_text(s, "跳跃连接：保留高分辨率边界细节", 3.0, 2.62, 3.8, 0.28, 8.5, False, GRAY)
-    # ASPP 展开
+    # ASPP detail
     add_rect(s, 4.05, 3.25, 3.8, 1.55, LIGHT, line=MID, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.06)
     add_text(s, "ASPP 五个分支", 4.22, 3.34, 3.4, 0.3, 10.5, True, NAVY)
     for i, text in enumerate(["1×1", "r=2", "r=4", "r=8", "GAP"]):
         add_rect(s, 4.22 + i * 0.7, 3.78, 0.62, 0.5, TEAL if i < 4 else ORANGE, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.15)
         add_text(s, text, 4.25 + i * 0.7, 3.88, 0.56, 0.28, 8.5, True, WHITE, PP_ALIGN.CENTER)
     add_text(s, "拼接 → 1×1 压缩 → Dropout 0.1", 4.22, 4.40, 3.4, 0.26, 8.5, False, GRAY)
-    # 右侧要点
+    # Key points on the right
     add_text(s, "为什么加 ASPP？", 9.45, 1.55, 3.35, 0.35, 13, True, NAVY)
     add_bullets(s, ["小建筑要局部纹理，大建筑要更大感受野", "多尺度上下文利用街道、院落结构区分相邻屋顶", "全局分支提供场景级先验，抑制孤立误检"],
                 9.45, 2.02, 3.3, 2.5, size=9.5, spacing=1.25)
@@ -371,7 +371,7 @@ def build():
     add_text(s, "代价：更多容量，也需要更多数据与训练预算。", 0.6, 5.45, 8.3, 0.5, 10.5, True, ORANGE)
     add_notes(s, "基线是 4 级 U-Net。ASPP 在瓶颈层并联 1×1、r=2/4/8 和全局池化五个分支，再压缩回原通道。参数量约翻倍，训练时间增加 55%。")
 
-    # ---------------- 9. 边界监督 ----------------
+    # ---------------- 9. Boundary supervision ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "方法二：边界辅助监督，让轮廓进入共享特征", "不改变推理结构，只在训练时增加边界任务", 9)
@@ -382,7 +382,7 @@ def build():
     add_text(s, "5×5 椭圆结构元，边界带总宽约 4 像素（约 4 m）", 9.05, 2.42, 3.55, 0.55, 9.2, False, GRAY)
     add_text(s, "总损失", 9.05, 3.05, 3.5, 0.28, 10, True, NAVY)
     add_text(s, "BCE + 0.5·Dice\n+ 0.35·BCE_edge", 9.05, 3.36, 3.5, 0.65, 11.5, True, ORANGE, font=FONT_EN)
-    # 底部三卡
+    # Three cards at the bottom
     points = [
         ("共享解码器", "边界头接在解码器第一层，梯度回传到共享特征，而不是只做后处理。", TEAL),
         ("类别不平衡", "边界像素稀少，使用正样本权重 4 的 BCE，避免模型倾向全预测背景。", ORANGE),
@@ -393,7 +393,7 @@ def build():
     add_text(s, "关键：边界监督改变的是特征学习，不是推理后处理。", 0.6, 6.58, 12.0, 0.35, 10.5, True, NAVY)
     add_notes(s, "边界目标由膨胀减腐蚀得到。边界头只在训练时存在，推理时去掉，因此不增加部署成本。")
 
-    # ---------------- 10. 实验设置 ----------------
+    # ---------------- 10. Experimental setup ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "实验设置与评价体系", "统一预算下的三组对照 · 像素 / 边界 / 实例三级指标", 10)
@@ -424,7 +424,7 @@ def build():
     add_text(s, "评价原则：先看 IoU，再看边界与实例；不用测试集调阈值。", 0.55, 6.55, 12.0, 0.35, 10.5, True, TEAL)
     add_notes(s, "实验统一使用 256 输入、900 张图块、12 轮训练。评价同时看像素 IoU、Boundary IoU、小目标召回和粘连率。")
 
-    # ---------------- 11. 总体结果 ----------------
+    # ---------------- 11. Overall results ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "总体结果：没有免费午餐，但模块各有所长", "测试集 360 图块 · 17,964 栋建筑 · 阈值 0.5", 11)
@@ -444,7 +444,7 @@ def build():
                 0.6, 5.35, 12.1, 1.4, size=9.5, spacing=1.15)
     add_notes(s, "总体结果是一个权衡：ASPP 降粘连但降 IoU，边界监督提边界但总体持平。这说明单一模块无法同时解决所有误差。")
 
-    # ---------------- 12. 训练与消融 ----------------
+    # ---------------- 12. Training and ablation ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "训练过程与消融：边界监督收敛更快", "验证集仅 4 景，曲线存在波动，结论以测试集为准", 12)
@@ -465,7 +465,7 @@ def build():
     add_text(s, "训练成本：基线 19.4 min；ASPP 30.1 min；完整模型 29.7 min（CPU）。", 0.55, 6.15, 12.0, 0.35, 9.5, False, GRAY)
     add_notes(s, "完整模型收敛更快，但验证集太小，不能过度解读。消融显示 ASPP 改善小目标与粘连，边界监督改善边界，但总体 IoU 没有显著提升。")
 
-    # ---------------- 13. 分场景 ----------------
+    # ---------------- 13. Per-scenario analysis ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "分场景分析：低亮度与稀疏场景最受伤", "按光照、阴影、密度、尺度、背景复杂度、覆盖率分层", 13)
@@ -477,7 +477,7 @@ def build():
     add_text(s, "结论：光照与实例可分性\n是下一阶段的主攻方向", 9.95, 5.68, 2.7, 0.7, 9.5, True, WHITE)
     add_notes(s, "分场景看，低亮度最稳定地拉低精度；密集场景 IoU 不低，但粘连率约 0.20，说明语义 IoU 掩盖了实例错误。")
 
-    # ---------------- 14. 定性 ----------------
+    # ---------------- 14. Qualitative results ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "定性对比：完整模型边界更整齐", "绿色为真值，蓝色为预测；误差图绿 TP / 红 FP / 蓝 FN", 14)
@@ -489,7 +489,7 @@ def build():
     add_text(s, "边界监督改善了轮廓，但无法替代\n针对性的负样本挖掘。", 9.65, 5.66, 2.95, 0.65, 9.3, True, GRAY)
     add_notes(s, "定性看，完整模型的轮廓更整齐，但阴影水面误检和密集粘连仍然存在，说明边界监督不能替代负样本挖掘和实例建模。")
 
-    # ---------------- 15. 失败案例 ----------------
+    # ---------------- 15. Failure cases ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "失败案例：四类错误仍然存在", "完整模型 · 典型失败图块", 15)
@@ -509,14 +509,14 @@ def build():
     add_text(s, "→ 下一步：高分辨率数据 + 难负样本挖掘 + 分水岭/实例头", 6.22, 6.64, 6.45, 0.3, 9.5, True, TEAL_L)
     add_notes(s, "失败案例归纳为四类：密集粘连、阴影误检、小目标漏提、边界不完整。它们分别对应不同的改进方向。")
 
-    # ---------------- 16. 结论 ----------------
+    # ---------------- 16. Conclusion ----------------
     s = prs.slides.add_slide(blank)
     s.background.fill.solid(); s.background.fill.fore_color.rgb = BG
     add_header(s, "结论与展望", "初步研究回答了“改进了什么”，也暴露了“还缺什么”", 16)
     add_rect(s, 0.55, 1.42, 12.15, 0.62, NAVY, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.2)
     add_text(s, "核心判断：当前瓶颈是数据分辨率与实例级建模，而不是网络深度不足。",
              0.8, 1.54, 11.7, 0.35, 11.5, True, TEAL_L, PP_ALIGN.CENTER)
-    # 左结论
+    # Conclusions on the left
     add_text(s, "本阶段结论", 0.55, 2.25, 5.5, 0.35, 13, True, NAVY)
     conclusions = [
         "完成可复现 CPU 闭环：数据—训练—评价—可视化全部脚本化",
@@ -528,7 +528,7 @@ def build():
         y = 2.72 + i * 0.82
         add_text(s, f"0{i + 1}", 0.6, y, 0.4, 0.3, 10, True, TEAL)
         add_text(s, text, 1.05, y - 0.02, 5.35, 0.62, 9.5, False, GRAY, spacing=1.1)
-    # 右展望
+    # Outlook on the right
     add_text(s, "下一阶段（按优先级）", 7.0, 2.25, 5.5, 0.35, 13, True, NAVY)
     nexts = [
         ("换数据", "WHU / Inria 0.3 m，解决小目标信息不足"),
@@ -545,7 +545,7 @@ def build():
              0.55, 6.40, 12.1, 0.45, 9.5, True, TEAL, PP_ALIGN.CENTER)
     add_notes(s, "结论是：ASPP 和边界监督各有作用，但没有显著提升总体 IoU。下一步优先换高分辨率数据和预训练编码器，再做实例分离。")
 
-    # ---------------- 17. 致谢 ----------------
+    # ---------------- 17. Acknowledgements ----------------
     s = prs.slides.add_slide(blank)
     bg = s.background.fill
     bg.solid(); bg.fore_color.rgb = NAVY

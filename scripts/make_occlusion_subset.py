@@ -47,7 +47,7 @@ def main() -> int:
         r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
         exg = 2 * g - r - b
         veg = ((exg > 30) & (g > r + 5)).astype(np.uint8)
-        # 树荫：暗且靠近植被（减少深色屋顶的误判）
+        # Tree shade: dark and close to vegetation (reduces false positives on dark roofs)
         gray = 0.299 * r + 0.587 * g + 0.114 * b
         med = float(np.median(gray))
         dark = (gray < 0.60 * med).astype(np.uint8)
@@ -55,7 +55,7 @@ def main() -> int:
         tree_shadow = ((dark > 0) & near_veg).astype(np.uint8)
         occl = np.clip(veg + tree_shadow, 0, 1).astype(np.uint8)
 
-        # 遮挡 = 落在建筑真值轮廓内部的植被像素（树盖在屋顶上）
+        # Occlusion = vegetation pixels falling inside the ground-truth building outline (trees covering roofs)
         n, labels, stats, _ = cv2.connectedComponentsWithStats(gt, 8)
         ratios = []
         for j in range(1, n):
@@ -75,7 +75,8 @@ def main() -> int:
                      "buildings": len(ratios), "area": int(gt.sum())})
 
     rows.sort(key=lambda r: -r["score"])
-    # 分层抽样：轻度/中度/重度/极重各取一批，避免只挑最极端的
+    # Stratified sampling: take a batch from each of light/moderate/severe/extreme levels,
+    # so we do not only pick the most extreme cases
     bins = [(0.12, 0.25), (0.25, 0.45), (0.45, 0.70), (0.70, 1.01)]
     per_bin = max(n_out // len(bins), 4)
     picked = []
@@ -83,7 +84,7 @@ def main() -> int:
         chunk = [r for r in rows if lo <= r["score"] < hi][:per_bin]
         picked.extend(chunk)
     picked.sort(key=lambda r: -r["score"])
-    # 固定加入参考样本 0153（index 152）
+    # Always include the reference sample 0153 (index 152)
     if not any(r["index"] == 152 for r in picked):
         ref = next((r for r in rows if r["index"] == 152), None)
         if ref:

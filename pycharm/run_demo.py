@@ -1,10 +1,10 @@
-"""PyCharm 演示脚本：加载已训练模型，对代表性测试图块做推理并导出给 MATLAB 分析。
+"""PyCharm demo script: load a trained model, run inference on representative test patches, and export them for MATLAB analysis.
 
-在 PyCharm 中以项目根目录为工作目录运行本文件。运行成功后会生成：
-  matlab_exchange/patch_*.png       原图 / 真值 / 预测 / 误差图
-  matlab_exchange/demo_manifest.csv 逐图块指标
-  matlab_exchange/demo_summary.json 汇总指标
-  pycharm_output/pycharm_run.log    运行日志
+Run this file in PyCharm with the project root as the working directory. A successful run produces:
+  matlab_exchange/patch_*.png       original image / ground truth / prediction / error map
+  matlab_exchange/demo_manifest.csv per-patch metrics
+  matlab_exchange/demo_summary.json summary metrics
+  pycharm_output/pycharm_run.log    run log
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def select_indices() -> dict[str, int]:
     rows = [r for r in rows if r["iou"] not in ("", "nan") and int(float(r["gt_count"])) >= 20]
     out = dict(reps)
     used = set(reps.values())
-    # 两个高 IoU 的成功案例
+    # Two successful cases with high IoU
     for r in sorted(rows, key=lambda r: float(r["iou"]), reverse=True):
         idx = int(r["index"])
         if idx in used or float(r["iou"]) > 0.85:
@@ -50,7 +50,7 @@ def select_indices() -> dict[str, int]:
         used.add(idx)
         if len([k for k in out if k.startswith("success")]) == 2:
             break
-    # 两个失败案例
+    # Two failure cases
     for r in sorted(rows, key=lambda r: float(r["iou"])):
         idx = int(r["index"])
         if idx in used:
@@ -104,7 +104,7 @@ def main() -> int:
     masks = np.load(ROOT / "data" / "processed" / "test_masks.npy")
     indices = select_indices()
 
-    # 四方向翻转 TTA，提升演示效果的稳定性
+    # Four-direction flip TTA to improve the stability of the demo results
     def predict(img: np.ndarray) -> np.ndarray:
         x0 = torch.from_numpy(img.astype(np.float32) / 255.0).permute(2, 0, 1)[None]
         mean = torch.tensor([0.2570, 0.2586, 0.2346]).view(1, 3, 1, 1)

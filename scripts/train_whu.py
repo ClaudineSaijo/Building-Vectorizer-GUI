@@ -326,13 +326,13 @@ def main() -> int:
                                      * np.asarray(std).reshape(1, 1, 1, -1)
                                      + np.asarray(mean).reshape(1, 1, 1, -1))
                             exg_v = 2 * rgb_v[..., 1] - rgb_v[..., 0] - rgb_v[..., 2]
-                            veg_m = (exg_v > 6) & (rgb_v[..., 1] >= rgb_v[..., 0] - 2)   # 含墨绿/暗绿树冠
+                            veg_m = (exg_v > 6) & (rgb_v[..., 1] >= rgb_v[..., 0] - 2)   # includes dark green / deep green tree crowns
                             veg_t = torch.from_numpy(veg_m.astype(np.float32)[:, None]).to(device)
                         missed_v = torch.relu(y - torch.sigmoid(seg.float())) * veg_t * (y > 0.5)
                         loss = loss + 2.0 * missed_v.mean()
 
                     if args.shadow_weighted_loss:
-                        # 阴影内被漏检的建筑像素额外惩罚
+                        # extra penalty for missed building pixels inside shadows
                         with torch.no_grad():
                             rgb = (x.detach().float().cpu().numpy().transpose(0, 2, 3, 1)
                                    * np.asarray(std).reshape(1, 1, 1, -1)
@@ -355,7 +355,7 @@ def main() -> int:
                         vis_t_t = torch.from_numpy(vis_t[:, None].astype(np.float32)).to(device)
                         loss = loss + args.visible_weight * F.binary_cross_entropy_with_logits(
                             vis_logits.float(), vis_t_t)
-                        # amodal 必须覆盖 visible
+                        # amodal must cover visible
                         loss = loss + 0.2 * torch.relu(torch.sigmoid(vis_logits.float())
                                                        - torch.sigmoid(seg.float())).mean()
 

@@ -121,8 +121,8 @@ def run_task(task: dict, state: dict) -> str:
         while proc.poll() is None:
             if minutes_left() <= SLACK_MIN:
                 log(f"到达停止时间，结束 {name}（次日续跑）")
-                # Windows 上 .venv\Scripts\python.exe 是个启动器，terminate 只杀壳，
-                # 真正的训练进程会继续跑；必须用 taskkill /T 杀整棵树
+                # On Windows .venv\Scripts\python.exe is a launcher, so terminate only kills
+                # the wrapper shell while the real training process keeps running; use taskkill /T
                 try:
                     if os.name == "nt":
                         subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"],
@@ -193,7 +193,7 @@ def main() -> int:
             time.sleep(300)
             continue
 
-        # 训练任务若已有 last.pt 但没写 --resume，重启窗口会把进度全部重跑
+        # If a training task already has last.pt under --out but no --resume, a window restart re-runs all progress
         cmd = task.get("cmd", [])
         if "--out" in cmd and ("--resume" not in cmd):
             try:
@@ -222,9 +222,9 @@ def main() -> int:
         if status in ("done", "failed"):
             state["index"] = idx + 1
             save_json(STATE_FILE, state)
-        # interrupted -> 保持 index 不变，次日用 --resume 继续
+        # interrupted -> keep index unchanged and continue the next day with --resume
 
-        # 一个窗口结束后等下一个窗口（06:30-13:50 / 16:00-23:00）
+        # after one window ends, wait for the next window (06:30-13:50 / 16:00-23:00)
         if minutes_left() <= SLACK_MIN:
             log("本窗口结束，等待下一个窗口")
     return 0

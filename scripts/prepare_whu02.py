@@ -87,7 +87,7 @@ def pack(split: str, out_dir: Path, size: int, n_crops: int) -> dict:
         if k % 400 == 0:
             print(f"  {split} {k}/{total}", flush=True)
     imgs.flush(); msks.flush()
-    # 通道统计
+    # Channel statistics
     sample = np.asarray(imgs[::max(1, k // 400)]).astype(np.float32) / 255.0
     mean = sample.reshape(-1, 3).mean(axis=0)
     std = sample.reshape(-1, 3).std(axis=0)

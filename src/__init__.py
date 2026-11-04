@@ -1,1 +1,1 @@
-"""航拍建筑物提取初步实验。"""
+"""Preliminary experiments on building extraction from aerial imagery."""

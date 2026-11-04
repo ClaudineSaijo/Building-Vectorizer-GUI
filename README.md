@@ -1,78 +1,78 @@
-# 航拍图像建筑物自动提取：初步实验
+# Automated Building Extraction from Aerial Imagery: Preliminary Experiments
 
-本仓库是毕业设计课题的**可复现初步实验**，针对航拍建筑物提取中的四类困难：
+This repository is a **reproducible preliminary experiment** for the graduation project, targeting four classes of difficulty in aerial building extraction:
 
-- 光照变化（阴影、曝光不足）
-- 遮挡与复杂背景（道路、植被、水体混淆）
-- 尺度差异（小目标漏提、大建筑边界不完整）
-- 密集区域粘连（相邻建筑被预测为一个连通域）
+- Illumination variation (shadows, underexposure)
+- Occlusion and complex backgrounds (confusion with roads, vegetation, and water bodies)
+- Scale variation (missed small targets, incomplete boundaries of large buildings)
+- Adhesion in dense areas (adjacent buildings predicted as a single connected component)
 
-在公开的 **Massachusetts Buildings Dataset** 上，比较 U-Net 基线、多尺度特征融合、以及“多尺度 + 边界辅助监督”三组模型，并给出像素级、边界级与实例级（小目标召回、粘连率）的评价和失败案例分析。
+On the public **Massachusetts Buildings Dataset**, three model groups are compared — a U-Net baseline, multi-scale feature fusion, and "multi-scale + boundary auxiliary supervision" — together with pixel-level, boundary-level, and instance-level evaluation (small-target recall, adhesion rate) and failure-case analysis.
 
-## 1. 环境
+## 1. Environment
 
-本机实测环境：
+Environment measured on this machine:
 
-| 项目 | 配置 |
+| Item | Configuration |
 |---|---|
-| Python | 3.13.5（`.venv` 虚拟环境） |
+| Python | 3.13.5 (`.venv` virtual environment) |
 | PyTorch | 2.14.1+cpu |
-| CPU | AMD Ryzen 7 8845H（8 核 16 线程） |
-| GPU | 无 CUDA，纯 CPU 训练 |
-| 内存 | 14 GB |
+| CPU | AMD Ryzen 7 8845H (8 cores, 16 threads) |
+| GPU | No CUDA, pure CPU training |
+| Memory | 14 GB |
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-# CPU 版 PyTorch 建议单独安装：
+# The CPU build of PyTorch is best installed separately:
 .\.venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
-## 2. 数据
+## 2. Data
 
-使用 Mnih (2013) 的 Massachusetts Buildings Dataset（1 m 分辨率，1500×1500 航拍图，官方 train/valid/test 划分）：
+The Massachusetts Buildings Dataset from Mnih (2013) is used (1 m resolution, 1500×1500 aerial images, official train/valid/test split):
 
 ```powershell
-# 本实验为控制 CPU 成本，只取 40 张训练图 + 官方验证/测试集
+# To control CPU cost, this experiment uses only 40 training images plus the official validation/test sets
 .\.venv\Scripts\python.exe scripts\download_data.py --train 40 --valid 10 --test 10 --workers 3
 .\.venv\Scripts\python.exe scripts\prepare_data.py --patch 256 --stride 256
 ```
 
-切块后：训练 1325 张、验证 144 张、测试 360 张（256×256）。训练时随机抽取 900 张，并做翻转、旋转、亮度/对比度/Gamma/噪声增强。
+After tiling: 1325 training, 144 validation, and 360 test patches (256×256). Training samples 900 patches at random and applies flip, rotation, brightness/contrast/gamma/noise augmentation.
 
-> 数据仅用于科研，请引用：Mnih, V. *Machine Learning for Aerial Image Labeling*. PhD thesis, University of Toronto, 2013.
+> The data is for research use only; please cite: Mnih, V. *Machine Learning for Aerial Image Labeling*. PhD thesis, University of Toronto, 2013.
 
-## 3. 方法
+## 3. Method
 
-- **U-Net 基线**：4 级编码-解码，base=16，BCE + Dice。
-- **+多尺度融合（MSF）**：瓶颈层加入 ASPP（膨胀率 1/2/4/8 + 全局池化），在同一层同时捕获近、中、远距离上下文，缓解尺度差异和密集区域粘连。
-- **完整模型**：MSF + 边界辅助头。由真值形态学梯度生成边界带，额外用带正样本权重的 BCE 监督，提升边缘完整性。
+- **U-Net baseline**: 4-level encoder–decoder, base=16, BCE + Dice.
+- **+ Multi-scale fusion (MSF)**: ASPP is added at the bottleneck (dilation rates 1/2/4/8 + global pooling), capturing near-, mid-, and long-range context in the same layer, which alleviates scale variation and adhesion in dense areas.
+- **Full model**: MSF + boundary auxiliary head. A boundary band is generated from the morphological gradient of the ground truth and supervised with an additional BCE weighted by positive samples, improving edge completeness.
 
-## 4. 复现实验
+## 4. Reproducing the Experiments
 
 ```powershell
-# 数据难度量化与总览图
+# Quantify data difficulty and produce the overview figure
 .\.venv\Scripts\python.exe scripts\audit_dataset.py
 
-# 三个模型（CPU 上每个约 15–25 分钟）
+# Three models (about 15–25 minutes each on CPU)
 .\.venv\Scripts\python.exe scripts\train.py --model unet --epochs 12 --max-train 900 --base 16 --channels-last
 .\.venv\Scripts\python.exe scripts\train.py --model msf  --epochs 12 --max-train 900 --base 16 --channels-last
 .\.venv\Scripts\python.exe scripts\train.py --model full --epochs 12 --max-train 900 --base 16 --channels-last
 
-# 在验证集上选阈值，在测试集上评价
+# Tune the threshold on the validation set and evaluate on the test set
 .\.venv\Scripts\python.exe scripts\evaluate.py --models unet msf full --tune
 .\.venv\Scripts\python.exe scripts\analyze_results.py
 ```
 
-## 5. 输出
+## 5. Outputs
 
 ```
 results/
-  dataset_audit.json              # 光照/尺度/密度/背景复杂度统计
-  metrics_<model>_test.json       # 总体指标
-  model_summary.csv               # 三组模型汇总表
-  per_image_<model>_test.csv      # 单图诊断（亮度、阴影、密度、IoU、小目标召回、粘连率）
-  analysis_summary.json           # 分场景指标、相关系数、Bootstrap 区间
+  dataset_audit.json              # illumination/scale/density/background-complexity statistics
+  metrics_<model>_test.json       # overall metrics
+  model_summary.csv               # summary table of the three model groups
+  per_image_<model>_test.csv      # per-image diagnostics (brightness, shadow, density, IoU, small-target recall, adhesion rate)
+  analysis_summary.json           # per-scenario metrics, correlation coefficients, Bootstrap intervals
   figures/
     dataset_overview.png
     model_comparison.png
@@ -81,133 +81,132 @@ results/
     qualitative_comparison.png
     failure_cases.png
   geometry/
-    vectorization_demo.png        # 朴素矢量化基线
+    vectorization_demo.png        # naive vectorization baseline
     vector_metrics.json
-    pipeline_diagnostic.png       # 四组配置的矢量结果对比（由 vectorize_diagnostic.py 生成）
+    pipeline_diagnostic.png       # vectorization results for four configurations (generated by vectorize_diagnostic.py)
   ablation/
-    ablation_compare.csv          # 4 组配置 × 各模型 × 平均指标
+    ablation_compare.csv          # 4 configurations × each model × mean metrics
     ablation_compare.json
     ablation_compare.png
-runs/<model>/best.pt              # 验证集 IoU 最优权重
-report/初步研究报告.md            # 中文初步研究报告
-docs/可视化系统说明.md            # 可视化原型系统的使用与设计说明
+runs/<model>/best.pt              # weights with the best validation IoU
+report/preliminary-research-report.md  # preliminary research report (in Chinese)
+docs/gui-manual.md                # usage and design documentation of the visualization prototype system
 ```
 
-## 6. 目录
+## 6. Repository Layout
 
 ```
-src/           数据集、模型、损失、指标、推理、矢量化、Shapefile 写出
-scripts/       下载、切块、审计、训练、评价、分析、消融实验、PPT 生成
-app/           可视化原型系统（GUI：主窗口、画布、对比窗口、资源监视）
-docs/          系统说明与界面截图
-pycharm/       PyCharm 演示脚本与运行说明
-matlab/        MATLAB 结果分析脚本与运行说明
-data/raw       原始 tile；data/processed 为 .npy 切块
-runs/          训练日志与权重
-results/       指标、图表
-report/        中文初步研究报告
+src/           datasets, models, losses, metrics, inference, vectorization, Shapefile writing
+scripts/       download, tiling, audit, training, evaluation, analysis, ablation, PPT generation
+app/           visualization prototype system (GUI: main window, canvas, comparison window, resource monitor)
+docs/          system documentation and interface screenshots
+pycharm/       PyCharm demo script and run instructions
+matlab/        MATLAB result-analysis script and run instructions
+data/raw       raw tiles; data/processed holds .npy patches
+runs/          training logs and weights
+results/       metrics, figures
+report/        preliminary research report (in Chinese)
 ```
 
-## 7. PyCharm + MATLAB 工具链
+## 7. PyCharm + MATLAB Toolchain
 
-按“先 PyCharm、后 MATLAB”的顺序运行：
+Run in the order "PyCharm first, MATLAB second":
 
-1. **PyCharm**：打开项目根目录，选择运行配置 **Building Extraction Demo**，按 `Shift+F10`。  
-   脚本 `pycharm/run_demo.py` 加载 `runs/full/best.pt`，对 8 个代表性图块做 TTA 推理，导出 `matlab_exchange/` 下的图块与指标。成功标志为控制台输出 `PYCHARM_DEMO_OK`。
-2. **关闭 PyCharm**。
-3. **MATLAB**（R2020a）：
+1. **PyCharm**: open the project root, select the run configuration **Building Extraction Demo**, and press `Shift+F10`.  
+   The script `pycharm/run_demo.py` loads `runs/full/best.pt`, performs TTA inference on 8 representative patches, and exports the patches and metrics under `matlab_exchange/`. Success is indicated by `PYCHARM_DEMO_OK` in the console output.
+2. **Close PyCharm**.
+3. **MATLAB** (R2020a):
 
 ```powershell
 & 'D:\MATLAB\bin\matlab.exe' -batch "run('matlab/analyze_results.m')"
 ```
 
-MATLAB 生成 `matlab_output/` 下的总体指标图、演示指标图、四类场景拼图和文本摘要。详见 `pycharm/README.md` 与 `matlab/README.md`。
+MATLAB generates the overall metrics figure, the demo metrics figure, four-scenario montages, and a text summary under `matlab_output/`. See `pycharm/README.md` and `matlab/README.md` for details.
 
-## 8. 论文汇报 PPT
+## 8. Thesis Presentation Slides
 
-已生成桌面文件：
+The desktop file has been generated:
 
 ```
-C:\Users\Nakan\Desktop\航拍建筑物提取_论文汇报.pptx
+C:\Users\Nakan\Desktop\aerial_building_extraction_thesis_presentation.pptx
 ```
 
-共 17 页，覆盖研究背景、四类困难、研究现状、技术路线、数据、方法、实验设置、总体结果、训练消融、分场景分析、定性对比、失败案例、结论与展望；每页含讲稿备注。修改内容后可重新生成：
+It has 17 slides covering research background, the four classes of difficulty, related work, technical roadmap, data, method, experimental setup, overall results, training ablation, per-scenario analysis, qualitative comparison, failure cases, and conclusions and outlook; each slide includes speaker notes. To regenerate after editing content:
 
 ```powershell
 & 'C:\Users\Nakan\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\python\python.exe' scripts\make_ppt.py
 ```
 
-> 这版 PPT 对应“ASPP + 边界监督”的先导实验。若按新的“鲁棒 + 矢量”主线重做，需要替换方法、结果与结论页。
+> This version of the slides corresponds to the pilot experiment of "ASPP + boundary supervision". If it is redone along the new "robust + vector" main line, the method, results, and conclusion slides must be replaced.
 
-## 9. 方向调整：鲁棒提取 + 几何语义一体化
+## 9. Direction Change: Robust Extraction + Integrated Geometric-Semantic Modeling
 
-针对“不在 U-Net 上继续堆模块”的新要求，已补充两份诊断实验与一份研究方案：
+In response to the new requirement "not to keep stacking modules onto U-Net", two diagnostic experiments and one research proposal have been added:
 
-- 非理想成像压力测试：`scripts/stress_test.py`  
-  结果：`results/robustness/robustness_stress.png`、`robustness_stress.json`  
-  现有模型在低照度/噪声下 IoU 从 0.577 降到约 0.29–0.30。
-- 像素→多边形初探：`scripts/vectorize_demo.py`  
-  结果：`results/geometry/vectorization_demo.png`、`vector_metrics.json`  
-  朴素矢量化平均 Polygon IoU 0.570、Boundary F1 0.779、平均 8.1 个顶点。
-- 详细方案：`report/研究方向调整建议.md`  
-  建议主线：**非理想成像条件下的航拍建筑物鲁棒矢量提取**；  
-  第 3 章做退化基准与轻量鲁棒适配，第 4 章做几何—语义一体化（mask + boundary + distance + instance + polygon），第 5 章统一评估。
+- Non-ideal imaging stress test: `scripts/stress_test.py`  
+  Results: `results/robustness/robustness_stress.png`, `robustness_stress.json`  
+  Under low illumination/noise, the IoU of the existing model drops from 0.577 to about 0.29–0.30.
+- Pixel-to-polygon preliminary study: `scripts/vectorize_demo.py`  
+  Results: `results/geometry/vectorization_demo.png`, `vector_metrics.json`  
+  Naive vectorization gives a mean Polygon IoU of 0.570, Boundary F1 of 0.779, and a mean of 8.1 vertices.
+- Detailed proposal: `report/research-direction-adjustment-proposal.md`  
+  Proposed main line: **robust vector extraction of aerial buildings under non-ideal imaging conditions**;  
+  Chapter 3 covers the degradation benchmark and lightweight robust adaptation, Chapter 4 covers integrated geometric-semantic modeling (mask + boundary + distance + instance + polygon), and Chapter 5 covers unified evaluation.
 
-## 10. 可视化原型系统（开题报告"预期目标与结果"第 4 条）
+## 10. Visualization Prototype System (Item 4 of "Expected Goals and Results" in the Proposal Report)
 
-按开题报告提出的"影像导入 → 模型推理 → 栅格/矢量叠加显示 → 顶点编辑 → 结果导出
-→ 配置对比与消融"要求，新增了可一键运行的原型系统：
+Following the proposal's requirements of "image import → model inference → raster/vector overlay display → vertex editing → result export → configuration comparison and ablation", a one-click prototype system has been added:
 
 ```powershell
 .\.venv\Scripts\python.exe run_vectorizer.py
 ```
 
-> PyCharm 用户：解释器选 `Python 3.13 (BISHE venv)`，运行配置选 **Building Vectorizer GUI**
-> （仓库已附带 `.idea/runConfigurations/Building_Vectorizer_GUI.xml`），或右键
-> `run_vectorizer.py` → Run。原有的 **Building Extraction Demo** 配置跑的是
-> `pycharm/run_demo.py`（无界面），不要用它启动本系统。启动失败会写 `logs/gui_crash.log`。
+> PyCharm users: choose the interpreter `Python 3.13 (BISHE venv)` and the run configuration **Building Vectorizer GUI**
+> (the repository already ships `.idea/runConfigurations/Building_Vectorizer_GUI.xml`), or right-click
+> `run_vectorizer.py` → Run. The existing **Building Extraction Demo** configuration runs
+> `pycharm/run_demo.py` (headless); do not use it to start this system. Startup failures are written to `logs/gui_crash.log`.
 >
-> 项目本身就是标准 PyCharm 项目（含 `.idea/` 与 `BISHE.iml`），用文件夹方式打开即可；
-> 若项目结构缺失，运行 `python scripts/pycharm_bootstrap.py` 重建。详见
-> [docs/PyCharm项目配置说明.md](docs/PyCharm项目配置说明.md)。
+> The project itself is a standard PyCharm project (including `.idea/` and `BISHE.iml`), so opening it as a folder is sufficient;
+> if the project structure is missing, run `python scripts/pycharm_bootstrap.py` to rebuild it. See
+> [docs/pycharm-setup.md](docs/pycharm-setup.md) for details.
 
-![主界面](docs/screenshots/main_window.png)
+![Main window](docs/screenshots/main_window.png)
 
-功能要点：
+Key features:
 
-- **影像输入**：内置 256×256 测试图块、**WHU 512² 航空图块（0.3 m，带真值）**、1500×1500 高分辨率样例、
-  本地 GeoTIFF/PNG/JPG；自动处理 16 位、灰度、RGBA 与 BGR→RGB 通道顺序；滑窗 + 重叠加权拼接推理。
-- **鼠标切换算法配置**：边界分支、顶点回归、几何约束三个开关，外加阈值、最小面积、
-  简化系数滑杆；切换后重新推理即可对比。
-- **模型自动选择**：启动时挑验证 IoU 最高的权重，并自动套用它评测出的分割阈值
-  （当前为 `whu_cpu_unet`，IoU 0.770，阈值 0.60）。
-- **叠加显示**：原图 + 分割掩膜 + 边界带 + 真值边界 + 矢量多边形 + 顶点，滚轮缩放、
-  拖动平移，只重采样可见区域，1500×1500 影像也流畅。
-- **顶点编辑**：拖拽移动、双击边插入、右键删除，指标实时重算并同步到导出结果。
-- **结果导出**：GeoJSON 与 ESRI Shapefile（`.shp/.shx/.dbf`，自行实现，无需 GDAL），
-  另可导出指标 JSON。
-- **运行信息**：总耗时、分阶段耗时（阈值/分离/轮廓/顶点/几何）、CPU 与内存占用。
-- **对比与消融**：5 组配置 × 各模型的批量评测表 + 柱状图，自动给出最优方案并导出 CSV。
+- **Image input**: built-in 256×256 test patches, **WHU 512² aerial patches (0.3 m, with ground truth)**, a 1500×1500 high-resolution sample,
+  and local GeoTIFF/PNG/JPG files; 16-bit, grayscale, RGBA, and BGR→RGB channel order are handled automatically; sliding-window inference with overlap-weighted stitching.
+- **Switch algorithm configurations with the mouse**: three toggles for the boundary branch, vertex regression, and geometric constraints, plus sliders for threshold, minimum area,
+  and simplification coefficient; toggle and re-run inference to compare.
+- **Automatic model selection**: on startup, the weights with the highest validation IoU are chosen, and the segmentation threshold from their evaluation is applied automatically
+  (currently `whu_cpu_unet`, IoU 0.770, threshold 0.60).
+- **Overlay display**: original image + segmentation mask + boundary band + ground-truth boundary + vector polygons + vertices, wheel zoom,
+  drag panning, and resampling of only the visible region, so even 1500×1500 images stay smooth.
+- **Vertex editing**: drag to move, double-click an edge to insert, right-click to delete; metrics are recomputed in real time and kept in sync with the exported results.
+- **Result export**: GeoJSON and ESRI Shapefile (`.shp/.shx/.dbf`, implemented in-house, no GDAL required),
+  plus optional metrics JSON export.
+- **Runtime information**: total elapsed time, per-stage timings (threshold/separation/contour/vertex/geometry), and CPU and memory usage.
+- **Comparison and ablation**: a batch evaluation table and bar chart for 5 configurations × each model, automatically selecting the best scheme and exporting CSV.
 
-命令行消融实验：
+Command-line ablation experiment:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\ablation_benchmark.py --samples 16
 ```
 
-详细说明、界面截图与实测结果见 [docs/可视化系统说明.md](docs/可视化系统说明.md)。
-自检与冒烟测试：
+For detailed documentation, interface screenshots, and measured results, see [docs/gui-manual.md](docs/gui-manual.md).
+Self-checks and smoke tests:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\selfcheck_vectorize.py   # 矢量化 + 两种导出格式
-.\.venv\Scripts\python.exe scripts\smoke_gui.py             # 界面启动→推理→编辑→导出
+.\.venv\Scripts\python.exe scripts\selfcheck_vectorize.py   # vectorization + both export formats
+.\.venv\Scripts\python.exe scripts\smoke_gui.py             # GUI startup→inference→editing→export
 ```
 
-## 11. 方案 B：WHU 数据集冲 IoU 0.85+（GPU 训练）
+## 11. Plan B: Pushing for IoU 0.85+ on the WHU Dataset (GPU Training)
 
-当前权重是在 40 张训练图上训 12 epoch 的早期试验，测试集 IoU 0.583。Massachusetts
-（1 m）本身的上限约 0.75–0.80，0.85 只有换 **WHU 航空数据集（0.3 m）** 才能达到。
-本仓库已备好完整链路，训练在 Colab/实验室 GPU 上跑，权重拷回即可在 GUI 中使用：
+The current weights come from an early trial trained for 12 epochs on 40 training images, with a test-set IoU of 0.583. The ceiling of Massachusetts
+(1 m) itself is about 0.75–0.80, so 0.85 can only be reached by switching to the **WHU aerial dataset (0.3 m)**.
+This repository already has the complete pipeline in place; training runs on a Colab/lab GPU, and the weights can be copied back for use in the GUI:
 
 ```bash
 pip install -r requirements-whu.txt                  # smp + timm
@@ -218,40 +217,40 @@ python scripts/train_whu.py --arch upernet --encoder resnet34 --epochs 60 \
 python scripts/evaluate_whu.py --model whu_upernet_r34 --split test --tta
 ```
 
-预期：WHU 测试集 **IoU 0.86–0.88**（TTA 后），F1 0.93 左右。把 `runs/whu_upernet_r34/`
-拷到本机后，界面模型下拉框会自动多一项（`InferenceEngine` 扫描 `runs/*/best.pt`，
-并自动读取 checkpoint 里的 `arch/encoder/mean/std/size`）。
+Expected: WHU test set **IoU 0.86–0.88** (after TTA), F1 around 0.93. After copying `runs/whu_upernet_r34/`
+to this machine, the model dropdown in the interface automatically gains one more entry (`InferenceEngine` scans `runs/*/best.pt`,
+and automatically reads `arch/encoder/mean/std/size` from the checkpoint).
 
-细节、参数表、显存与排错见 [docs/WHU训练指南.md](docs/WHU训练指南.md)。
-训练脚本 `scripts/train_whu.py` 也支持 `--device auto`，有 CUDA 就用 GPU，没有则退回 CPU。
+For details, parameter tables, VRAM, and troubleshooting, see [docs/whu-training-guide.md](docs/whu-training-guide.md).
+The training script `scripts/train_whu.py` also supports `--device auto`, using the GPU when CUDA is available and falling back to CPU otherwise.
 
-### 11.1 本地 CPU 基线（无 GPU 实测）
+### 11.1 Local CPU Baseline (Measured Without a GPU)
 
-在只有核显的机器上（U-Net base=16、256² 裁剪、先 2800 张 18 轮再全量 4736 张续训
-到 38 轮，约 5 小时），WHU 测试集（2416 张）结果：
+On a machine with only integrated graphics (U-Net base=16, 256² crops, first 18 epochs on 2800 images and then continued training on the full 4736 images
+up to 38 epochs, about 5 hours), the results on the WHU test set (2416 images) are:
 
-| 阈值 | IoU | F1 | 精度 | 召回 |
+| Threshold | IoU | F1 | Precision | Recall |
 |---:|---:|---:|---:|---:|
 | 0.60 | 0.8199 | 0.9011 | 0.8775 | 0.9260 |
 | 0.70 | 0.8262 | 0.9048 | 0.9003 | 0.9094 |
 | **0.75** | **0.8273** | **0.9055** | 0.9123 | 0.8988 |
 | 0.80 | 0.8262 | 0.9048 | 0.9251 | 0.8855 |
 
-对比：Massachusetts 先导模型 IoU 0.583 → WHU CPU 基线 **0.8273**（+0.24）。
-完整报告（配置、曲线、样例、复现命令）见 [docs/WHU_CPU基线.md](docs/WHU_CPU基线.md)。
+Comparison: the Massachusetts pilot model at IoU 0.583 → WHU CPU baseline **0.8273** (+0.24).
+The full report (configuration, curves, samples, reproduction commands) is in [docs/whu-cpu-baseline.md](docs/whu-cpu-baseline.md).
 
-![训练曲线](docs/images/whu_cpu_training_curves.png)
+![Training curves](docs/images/whu_cpu_training_curves.png)
 
-模型位于 `runs/whu_cpu_unet/`，界面模型下拉框会自动出现 `whu_cpu_unet`。
+The model is located in `runs/whu_cpu_unet/`, and `whu_cpu_unet` appears automatically in the model dropdown of the interface.
 
-### 11.2 矢量优先评价协议
+### 11.2 Vector-First Evaluation Protocol
 
-本课题的主表落在矢量层，而不是只报像素 mIoU。协议（5 种配置 × 8 项矢量指标、
-数据与阈值口径、指标公式、读法与复现命令）见
-[docs/矢量评价协议.md](docs/矢量评价协议.md)，一键复现：
+The main table of this project is at the vector level rather than reporting only pixel mIoU. The protocol (5 configurations × 8 vector metrics,
+data and threshold conventions, metric formulas, how to read them, and reproduction commands) is in
+[docs/vector-evaluation-protocol.md](docs/vector-evaluation-protocol.md); one-click reproduction:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\evaluate_vectors_whu.py --samples 80 --threshold 0.75
 ```
 
-![矢量评价](docs/images/vector_eval.png)
+![Vector evaluation](docs/images/vector_eval.png)

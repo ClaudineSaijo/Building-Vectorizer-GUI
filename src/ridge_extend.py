@@ -86,11 +86,11 @@ def extend_polygon_along_ridge(points, image: np.ndarray, occluder: np.ndarray |
             continue
         if occ_near is not None and occ_frac > 0 and not occ_near[y, x]:
             continue
-        # 三种候选方向：沿边、沿外法向、沿内法向
+        # Three candidate directions: along the edge, along the outward normal, along the inward normal
         cen = pts.mean(axis=0)
         nrm = np.array([-d[1], d[0]], np.float32)
         if float(np.dot(cen - b, nrm)) > 0:
-            nrm = -nrm                      # 指向外侧
+            nrm = -nrm                      # point outward
         best_path = None
         for cand in (d, nrm):
             path = trace_ridge(bright, b, cand, max_len=max_len)

@@ -34,7 +34,7 @@ def boundary_f1(pred: np.ndarray, gt: np.ndarray, tol: int = 2) -> float:
     gb = cv2.dilate(gt, k) - cv2.erode(gt, k)
     if pb.sum() == 0 or gb.sum() == 0:
         return float("nan")
-    # 距离变换：到最近边界像素的距离
+    # Distance transform: distance to the nearest boundary pixel
     dist_to_pred = cv2.distanceTransform(1 - pb.astype(np.uint8), cv2.DIST_L2, 3)
     dist_to_gt = cv2.distanceTransform(1 - gb.astype(np.uint8), cv2.DIST_L2, 3)
     precision = float((dist_to_gt[pb > 0] <= tol).mean())
@@ -93,11 +93,11 @@ def main() -> int:
         })
 
         canvas = images[idx].copy()
-        # GT 边界（绿色）
+        # Ground-truth boundary (green)
         k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
         gb = cv2.dilate(gt, k) - cv2.erode(gt, k)
         canvas[gb > 0] = [40, 200, 90]
-        # 预测多边形（黄色）+ 顶点（红色）
+        # Predicted polygons (yellow) + vertices (red)
         for poly in polys:
             cv2.polylines(canvas, [poly], True, (255, 220, 40), 1, cv2.LINE_AA)
             for x, y in poly:

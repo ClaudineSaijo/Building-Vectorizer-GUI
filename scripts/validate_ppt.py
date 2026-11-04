@@ -1,4 +1,4 @@
-"""校验 PPTX 的幻灯片数量、标题、备注与图片数量。"""
+"""Check slide count, titles, speaker notes and picture count of a PPTX deck."""
 from pathlib import Path
 
 from pptx import Presentation

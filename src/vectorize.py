@@ -61,7 +61,7 @@ class VectorConfig:
     rect_min_support: float = 0.55   # share of edge length that must be axis-aligned
     use_completion: bool = True      # bridge tree/shadow occlusions with straight edges
     use_bridge: bool = False         # reconnect buildings split by trees/shadow
-    open_kernel: int = 3             # 形态学开运算核（1=不做开运算）
+    open_kernel: int = 3             # morphological opening kernel (1 = skip opening)
     bridge_max_gap: float = 40.0
     use_notch_cut: bool = True       # cut concave notches that are caused by occluders
     notch_tol_deg: float = 25.0      # max angle between the two edges flanking a notch

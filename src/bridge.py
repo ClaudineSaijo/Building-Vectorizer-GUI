@@ -61,7 +61,7 @@ def find_bridges(polygons, occluder: np.ndarray, image: np.ndarray | None = None
     h, w = occluder.shape[:2]
     bridges: list[Bridge] = []
 
-    # 每栋建筑的局部厚度图（用于估计桥的宽度）
+    # Local thickness map of each building (used to estimate the bridge width)
     colors: list[np.ndarray] = []
     for poly in polygons:
         tmp = np.zeros((h, w), np.uint8)
@@ -74,7 +74,7 @@ def find_bridges(polygons, occluder: np.ndarray, image: np.ndarray | None = None
         tmp = np.zeros((h, w), np.uint8)
         cv2.fillPoly(tmp, [np.round(np.asarray(poly.points)).astype(np.int32).reshape(-1, 1, 2)], 1)
         dt = cv2.distanceTransform(tmp, cv2.DIST_L2, 5)
-        # 内切圆半径 x2 ≈ 该建筑的短边尺寸
+        # Inscribed-circle radius x2 ~= the short-side size of that building
         widths.append(float(np.clip(2.0 * float(dt.max()), 6.0, 60.0)))
 
     for ia, pa in enumerate(polygons):
@@ -85,12 +85,12 @@ def find_bridges(polygons, occluder: np.ndarray, image: np.ndarray | None = None
                     continue
                 pts_b = np.asarray(pb.points, dtype=np.float32)
                 for _, b0, b1, db, lb in _edges(pts_b):
-                    if abs(float(np.dot(da, db))) < cos_tol:      # 方向不一致
+                    if abs(float(np.dot(da, db))) < cos_tol:      # directions do not match
                         continue
-                    # B 的两个端点都必须贴近 A 所在的直线
+                    # Both endpoints of B must lie close to the line through A
                     if max(_line_distance(b0, a0, da), _line_distance(b1, a0, da)) > max_offset:
                         continue
-                    # 找最近的一对端点，它们之间的空隙就是要跨接的缺口
+                    # Find the closest pair of endpoints; the gap between them is the one to bridge
                     pairs = [(a0, b0), (a0, b1), (a1, b0), (a1, b1)]
                     dists = [float(np.linalg.norm(x - y)) for x, y in pairs]
                     k = int(np.argmin(dists))
@@ -100,10 +100,11 @@ def find_bridges(polygons, occluder: np.ndarray, image: np.ndarray | None = None
                     e_a, e_b = pairs[k]
                     g = e_b - e_a
                     if float(abs(np.dot(g / gap, da))) < cos_tol:
-                        continue                                   # 不共线
-                    # 桥 = 沿缺口方向的矩形，宽度取该建筑端点处的局部厚度
+                        continue                                   # not collinear
+                    # Bridge = rectangle along the gap direction, width taken from the local
+                    # thickness at that building endpoint
                     w_local = float(min(widths[ia], widths[ib]))
-                    # 向内法向：由质心方向去掉沿边分量
+                    # Inward normal: remove the along-edge component from the centroid direction
                     cen_a = pts_a.mean(axis=0)
                     inward = cen_a - 0.5 * (a0 + a1)
                     inward = inward - float(np.dot(inward, da)) * da
@@ -133,7 +134,7 @@ def find_bridges(polygons, occluder: np.ndarray, image: np.ndarray | None = None
 
 
 def apply_bridges(polygons, bridges, shape, cfg):
-    """只把被桥接的多边形两两合并，其余多边形保持原样。"""
+    """Merge only the bridged polygon pairs with each other; keep all other polygons unchanged."""
     from .vectorize import (_contour_to_polygon, _dense_contour, _polygon_area,
                             _polygon_perimeter, BuildingPolygon)
 

@@ -113,7 +113,7 @@ def main() -> int:
     out_dir = ensure_dir(ROOT / "results" / "robustness")
     images = np.load(ROOT / "data" / "processed" / "test_images.npy")
     masks = (np.load(ROOT / "data" / "processed" / "test_masks.npy") > 0).astype(np.uint8)
-    # 固定抽取 120 个含建筑图块，控制 CPU 时间
+    # Fixed subsample of 120 patches containing buildings to bound CPU time
     rng = np.random.default_rng(7)
     candidates = np.where(masks.reshape(len(masks), -1).sum(1) > 0)[0]
     idx = np.sort(rng.choice(candidates, size=min(120, len(candidates)), replace=False))
